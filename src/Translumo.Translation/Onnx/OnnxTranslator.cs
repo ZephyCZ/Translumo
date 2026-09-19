@@ -1,12 +1,14 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.ML.OnnxRuntime;
+using Microsoft.ML.OnnxRuntime.Tensors;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.ML.OnnxRuntime;
-using Microsoft.ML.OnnxRuntime.Tensors;
 using Tokenizers.DotNet;
 using Translumo.Infrastructure.Language;
 using Translumo.Translation.Configuration;
@@ -30,19 +32,20 @@ namespace Translumo.Translation.Onnx
         private bool _isDownloading;
         private string _loadedModelPair; // Track which language pair is currently loaded
 
-        private const int PadTokenId = 54795;
-        private const int DecoderStartTokenId = 54795;
-        private const int EosTokenId = 0;
-        private const int MaxLength = 512;
+        // Token IDs (read from model config)
+        private int _padTokenId = 0;
+        private int _eosTokenId = 0;
+        private int _decoderStartTokenId = 0;
+        private int _maxLength = 128;
 
         // Bad word IDs that should never be generated (from model config)
-        private static readonly HashSet<int> BadWordIds = new HashSet<int> { PadTokenId };
+        private HashSet<int> _badWordIds = new HashSet<int>();
 
         public OnnxTranslator(TranslationConfiguration translationConfiguration, LanguageService languageService, ILogger logger)
             : base(translationConfiguration, languageService, logger)
         {
-            _modelBasePath = string.IsNullOrWhiteSpace(translationConfiguration.OnnxModelPath) 
-                ? "Models" 
+            _modelBasePath = string.IsNullOrWhiteSpace(translationConfiguration.OnnxModelPath)
+                ? "Models"
                 : translationConfiguration.OnnxModelPath;
         }
 
@@ -67,10 +70,14 @@ namespace Translumo.Translation.Onnx
 
             string modelDir = Path.Combine(_modelBasePath, pair);
 
-            if (!Directory.Exists(modelDir) || 
+            if (!Directory.Exists(modelDir) ||
                 !File.Exists(Path.Combine(modelDir, "encoder_model.onnx")) ||
                 !File.Exists(Path.Combine(modelDir, "decoder_model.onnx")) ||
-                !File.Exists(Path.Combine(modelDir, "tokenizer.json")))
+                !File.Exists(Path.Combine(modelDir, "tokenizer.json")) ||
+                !File.Exists(Path.Combine(modelDir, "generation_config.json")) //||
+                //!File.Exists(Path.Combine(modelDir, "config.json")) ||
+                //!File.Exists(Path.Combine(modelDir, "special_tokens_map.json"))
+                )
             {
                 if (!_isDownloading)
                 {
@@ -88,13 +95,48 @@ namespace Translumo.Translation.Onnx
                     IntraOpNumThreads = 1,
                     InterOpNumThreads = 1
                 };
-                
+
                 _encoderSession = new InferenceSession(Path.Combine(modelDir, "encoder_model.onnx"), options);
                 _decoderSession = new InferenceSession(Path.Combine(modelDir, "decoder_model.onnx"), options);
 
                 _tokenizer = new Tokenizer(Path.Combine(modelDir, "tokenizer.json"));
                 _loadedModelPair = pair;
-                
+
+                // Load configuration to get special token IDs
+                var generationConfigPath = Path.Combine(modelDir, "generation_config.json");
+                if (File.Exists(generationConfigPath))
+                {
+                    var json = File.ReadAllText(generationConfigPath);
+
+                    var config = JsonSerializer.Deserialize<GenerationConfig>(json);
+
+                    if (config?.PadTokenId != null)
+                        _padTokenId = config.PadTokenId.Value;
+
+                    if (config?.EosTokenId != null)
+                        _eosTokenId = config.EosTokenId.Value;
+
+                    if (config?.DecoderStartTokenId.HasValue == true)
+                        _decoderStartTokenId = config.DecoderStartTokenId.Value;
+                    
+                    else if (config?.ForcedBosTokenId.HasValue == true)
+                        _decoderStartTokenId = config.ForcedBosTokenId.Value;
+                    
+                    else if (config?.BosTokenId.HasValue == true)
+                        _decoderStartTokenId = config.BosTokenId.Value;
+
+                    if (config?.MaxLength.HasValue == true)
+                        _maxLength = config.MaxLength.Value;
+
+                    _badWordIds = new HashSet<int> { _padTokenId };
+                    if (config?.BadWordsIds?.Any() == true)
+                    {
+                        _badWordIds = config.BadWordsIds
+                            .SelectMany(x => x)
+                            .ToHashSet();
+                    }
+                }
+
                 return true;
             }
             catch (Exception ex)
@@ -122,12 +164,15 @@ namespace Translumo.Translation.Onnx
                 string baseUrl = $"https://huggingface.co/Xenova/opus-mt-{pair}/resolve/main";
                 using var client = new HttpClient();
                 client.Timeout = System.Threading.Timeout.InfiniteTimeSpan;
-                
+
                 var files = new[]
                 {
                     "onnx/encoder_model.onnx",
                     "onnx/decoder_model.onnx",
-                    "tokenizer.json"
+                    "tokenizer.json",
+                    "config.json",
+                    "generation_config.json",
+                    "special_tokens_map.json"
                 };
 
                 foreach (var file in files)
@@ -149,7 +194,7 @@ namespace Translumo.Translation.Onnx
 
                         if (file == "tokenizer.json")
                         {
-                            try 
+                            try
                             {
                                 var text = await File.ReadAllTextAsync(localFile);
                                 int start = text.IndexOf("\"normalizer\":");
@@ -199,13 +244,12 @@ namespace Translumo.Translation.Onnx
             bool isReady = await EnsureModelLoadedAsync(srcLang, tgtLang);
             if (!isReady)
             {
-                return "Sedang mengunduh model ONNX (sekitar 70MB)... Mohon tunggu beberapa menit dan coba translate lagi.";
+                return $"The ONNX model files for “{srcLang}-{tgtLang}” are missing.\nI'll try to download them.\nPlease wait a few minutes and try the translation again.";
             }
 
             // 1. Tokenize Input
             var encodeResult = _tokenizer.Encode(sourceText);
             var inputIds = encodeResult.Select(id => (long)id).ToList();
-            inputIds.Add(EosTokenId); // MarianNMT requires EOS at the end
 
             var inputTensor = new DenseTensor<long>(inputIds.ToArray(), new[] { 1, inputIds.Count });
             var attentionMaskTensor = new DenseTensor<long>(Enumerable.Repeat(1L, inputIds.Count).ToArray(), new[] { 1, inputIds.Count });
@@ -221,9 +265,11 @@ namespace Translumo.Translation.Onnx
             var encoderHiddenStates = encoderResults.First(v => v.Name == "last_hidden_state").AsTensor<float>();
 
             // 3. Decoder Loop (Greedy Search)
-            var decoderInputIds = new List<long> { DecoderStartTokenId };
-            
-            for (int i = 0; i < MaxLength; i++)
+            var decoderInputIds = new List<long> { _decoderStartTokenId };
+            var usedTokens = new HashSet<long> { _decoderStartTokenId }; //HashSet for speedup optimization
+            const float repetitionPenalty = 1.1f; // Penalty factor to discourage repetition. Recommended values between 1.1f - 1.3f.
+
+            for (int i = 0; i < _maxLength; i++)
             {
                 var decoderInputTensor = new DenseTensor<long>(decoderInputIds.ToArray(), new[] { 1, decoderInputIds.Count });
 
@@ -239,18 +285,27 @@ namespace Translumo.Translation.Onnx
 
                 // Get argmax of the last token, suppressing bad word IDs
                 int vocabSize = logits.Dimensions[2];
-                long nextToken = EosTokenId; // Default to EOS if nothing valid found
+                long nextToken = _eosTokenId; // Default to EOS if nothing valid found
                 float maxLogit = float.MinValue;
                 int seqLen = logits.Dimensions[1];
-                
+
                 // We want the logits for the *last* token in the sequence
                 for (int v = 0; v < vocabSize; v++)
                 {
                     // Suppress bad word IDs (e.g., pad token should never be generated)
-                    if (BadWordIds.Contains(v))
+                    if (_badWordIds.Contains(v))
                         continue;
 
                     float val = logits[0, seqLen - 1, v];
+
+                    // repetition penalty
+                    if (usedTokens.Contains(v))
+                    {
+                        val = val > 0
+                            ? val / repetitionPenalty
+                            : val * repetitionPenalty;
+                    }
+                    
                     if (val > maxLogit)
                     {
                         maxLogit = val;
@@ -258,12 +313,13 @@ namespace Translumo.Translation.Onnx
                     }
                 }
 
-                if (nextToken == EosTokenId)
+                if (nextToken == _eosTokenId)
                 {
                     break;
                 }
 
                 decoderInputIds.Add(nextToken);
+                usedTokens.Add(nextToken);
             }
 
             // Remove DecoderStartTokenId
@@ -272,5 +328,27 @@ namespace Translumo.Translation.Onnx
 
             return decodedText.Trim();
         }
+    }
+
+    public class GenerationConfig
+    {
+        [JsonPropertyName("bad_words_ids")]
+        public List<List<int>> BadWordsIds { get; set; }
+        [JsonPropertyName("pad_token_id")]
+        public int? PadTokenId { get; set; }
+
+        [JsonPropertyName("eos_token_id")]
+        public int? EosTokenId { get; set; }
+
+        [JsonPropertyName("decoder_start_token_id")]
+        public int? DecoderStartTokenId { get; set; }
+
+        [JsonPropertyName("forced_bos_token_id")]
+        public int? ForcedBosTokenId { get; set; }
+
+        [JsonPropertyName("bos_token_id")]
+        public int? BosTokenId { get; set; }
+        [JsonPropertyName("max_length")]
+        public int? MaxLength { get; set; }
     }
 }

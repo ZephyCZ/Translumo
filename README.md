@@ -10,6 +10,23 @@
 
 ---
 
+# 🚀 Version 1.6 Update: What's New & Fixed?
+
+This version of **Translumo** has been updated to Version 1.6, fixed Google, Yandex and ONNX translator.
+
+## ✨ New Features & UI Enhancements
+1. **ONNX translator**: Added a repetition penalty to improve the translation.
+2. **ONNX Language Setup Guide**: Text update.
+3. **Settings Window Languages**: remove vertical scroll bar. Text is wrapped.
+
+## 🛠️ Major Bug Fixes
+1. **Google translator**: Fixed a (404) Not Found error caused by changes made by Google on September, 2026.. 
+2. **Yandex translator**: Fixed infinity loop browser window (based on pull request: Fix Yandex translator - #295 by no1d)
+3. **ONNX translator**: Fix value pad token `54795` not work with all models. For example, the `EN-CS`, `ZH-EN`, and other models have completely different values. Therefore, a change was made so that token values and other parameters are loaded from the `generation_config.json` configuration file separately for each model.
+4. **Internal**: Fixed some XAML binding failures.
+
+---
+
 # 🚀 Version 1.5 Update: What's New & Fixed?
 
 This version of **Translumo** has been updated to Version 1.5, focusing heavily on ONNX offline translation stability, CPU optimization, and ease of use.
