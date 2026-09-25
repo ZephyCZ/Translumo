@@ -7,7 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Tokenizers.DotNet;
 using Translumo.Infrastructure.Language;
@@ -31,12 +30,18 @@ namespace Translumo.Translation.Onnx
         private Tokenizer _tokenizer;
         private bool _isDownloading;
         private string _loadedModelPair; // Track which language pair is currently loaded
+        private string _lastSourceText; // Track the last source text to avoid redundant translations
 
         // Token IDs (read from model config)
         private int _padTokenId = 0;
         private int _eosTokenId = 0;
         private int _decoderStartTokenId = 0;
         private int _maxLength = 128;
+        private int _numBeams = 2;
+
+        // Constants
+        private readonly int _beamCountLimit = 2; // Limit the number of beams to a reasonable number for performance
+        private const float _repetitionPenalty = 1.1f; // Penalty factor to discourage repetition. Recommended values between 1.1f - 1.3f.
 
         // Bad word IDs that should never be generated (from model config)
         private HashSet<int> _badWordIds = new HashSet<int>();
@@ -44,9 +49,10 @@ namespace Translumo.Translation.Onnx
         public OnnxTranslator(TranslationConfiguration translationConfiguration, LanguageService languageService, ILogger logger)
             : base(translationConfiguration, languageService, logger)
         {
+            _beamCountLimit = translationConfiguration.BeamCount;
             _modelBasePath = string.IsNullOrWhiteSpace(translationConfiguration.OnnxModelPath)
                 ? "Models"
-                : translationConfiguration.OnnxModelPath;
+                : translationConfiguration.OnnxModelPath;            
         }
 
         protected override IList<OnnxContainer> CreateContainers(TranslationConfiguration configuration)
@@ -74,9 +80,7 @@ namespace Translumo.Translation.Onnx
                 !File.Exists(Path.Combine(modelDir, "encoder_model.onnx")) ||
                 !File.Exists(Path.Combine(modelDir, "decoder_model.onnx")) ||
                 !File.Exists(Path.Combine(modelDir, "tokenizer.json")) ||
-                !File.Exists(Path.Combine(modelDir, "generation_config.json")) //||
-                //!File.Exists(Path.Combine(modelDir, "config.json")) ||
-                //!File.Exists(Path.Combine(modelDir, "special_tokens_map.json"))
+                !File.Exists(Path.Combine(modelDir, "generation_config.json"))
                 )
             {
                 if (!_isDownloading)
@@ -110,26 +114,23 @@ namespace Translumo.Translation.Onnx
 
                     var config = JsonSerializer.Deserialize<GenerationConfig>(json);
 
-                    if (config?.PadTokenId != null)
-                        _padTokenId = config.PadTokenId.Value;
+                    _padTokenId = config?.PadTokenId ?? _padTokenId;
+                    _eosTokenId = config?.EosTokenId ?? _eosTokenId;
+                    _maxLength = config?.MaxLength ?? _maxLength;
+                    _numBeams = config?.NumBeams ?? 1; // if model config doesn't specify, default to 1 (greedy search)
+                    _numBeams = Math.Min(_numBeams, _beamCountLimit);
 
-                    if (config?.EosTokenId != null)
-                        _eosTokenId = config.EosTokenId.Value;
-
+                    // _decoderStartTokenId is determined by the following priority:
                     if (config?.DecoderStartTokenId.HasValue == true)
-                        _decoderStartTokenId = config.DecoderStartTokenId.Value;
-                    
+                        _decoderStartTokenId = config.DecoderStartTokenId.Value;                    
                     else if (config?.ForcedBosTokenId.HasValue == true)
-                        _decoderStartTokenId = config.ForcedBosTokenId.Value;
-                    
+                        _decoderStartTokenId = config.ForcedBosTokenId.Value;                    
                     else if (config?.BosTokenId.HasValue == true)
                         _decoderStartTokenId = config.BosTokenId.Value;
 
-                    if (config?.MaxLength.HasValue == true)
-                        _maxLength = config.MaxLength.Value;
-
+                    // _badWordIds
                     _badWordIds = new HashSet<int> { _padTokenId };
-                    if (config?.BadWordsIds?.Any() == true)
+                    if (config?.BadWordsIds?.Count > 0)
                     {
                         _badWordIds = config.BadWordsIds
                             .SelectMany(x => x)
@@ -170,9 +171,7 @@ namespace Translumo.Translation.Onnx
                     "onnx/encoder_model.onnx",
                     "onnx/decoder_model.onnx",
                     "tokenizer.json",
-                    "config.json",
-                    "generation_config.json",
-                    "special_tokens_map.json"
+                    "generation_config.json"
                 };
 
                 foreach (var file in files)
@@ -238,6 +237,16 @@ namespace Translumo.Translation.Onnx
 
         protected override async Task<string> TranslateTextInternal(OnnxContainer container, string sourceText)
         {
+            // Nothing to translate
+            if (string.IsNullOrWhiteSpace(sourceText?.Trim()))
+                return string.Empty;
+            
+            // Avoid redundant translation if the source text hasn't changed
+            if (sourceText.Trim() == _lastSourceText)
+                return string.Empty;
+
+            _lastSourceText = sourceText.Trim();
+
             string srcLang = SourceLangDescriptor.Code.Substring(0, 2).ToLower();
             string tgtLang = TargetLangDescriptor.Code.Substring(0, 2).ToLower();
 
@@ -247,108 +256,172 @@ namespace Translumo.Translation.Onnx
                 return $"The ONNX model files for “{srcLang}-{tgtLang}” are missing.\nI'll try to download them.\nPlease wait a few minutes and try the translation again.";
             }
 
-            // 1. Tokenize Input
-            var encodeResult = _tokenizer.Encode(sourceText);
-            var inputIds = encodeResult.Select(id => (long)id).ToList();
-
-            var inputTensor = new DenseTensor<long>(inputIds.ToArray(), new[] { 1, inputIds.Count });
-            var attentionMaskTensor = new DenseTensor<long>(Enumerable.Repeat(1L, inputIds.Count).ToArray(), new[] { 1, inputIds.Count });
-
-            // 2. Encoder Forward
-            var encoderInputs = new List<NamedOnnxValue>
-            {
-                NamedOnnxValue.CreateFromTensor("input_ids", inputTensor),
-                NamedOnnxValue.CreateFromTensor("attention_mask", attentionMaskTensor)
-            };
-
-            using var encoderResults = _encoderSession.Run(encoderInputs);
-            var encoderHiddenStates = encoderResults.First(v => v.Name == "last_hidden_state").AsTensor<float>();
-
-            // 3. Decoder Loop (Greedy Search)
-            var decoderInputIds = new List<long> { _decoderStartTokenId };
-            var usedTokens = new HashSet<long> { _decoderStartTokenId }; //HashSet for speedup optimization
-            const float repetitionPenalty = 1.1f; // Penalty factor to discourage repetition. Recommended values between 1.1f - 1.3f.
-
-            for (int i = 0; i < _maxLength; i++)
-            {
-                var decoderInputTensor = new DenseTensor<long>(decoderInputIds.ToArray(), new[] { 1, decoderInputIds.Count });
-
-                var decoderInputs = new List<NamedOnnxValue>
-                {
-                    NamedOnnxValue.CreateFromTensor("input_ids", decoderInputTensor),
-                    NamedOnnxValue.CreateFromTensor("encoder_hidden_states", encoderHiddenStates),
-                    NamedOnnxValue.CreateFromTensor("encoder_attention_mask", attentionMaskTensor)
-                };
-
-                using var decoderResults = _decoderSession.Run(decoderInputs);
-                var logits = decoderResults.First(v => v.Name == "logits").AsTensor<float>();
-
-                // Get argmax of the last token, suppressing bad word IDs
-                int vocabSize = logits.Dimensions[2];
-                long nextToken = _eosTokenId; // Default to EOS if nothing valid found
-                float maxLogit = float.MinValue;
-                int seqLen = logits.Dimensions[1];
-
-                // We want the logits for the *last* token in the sequence
-                for (int v = 0; v < vocabSize; v++)
-                {
-                    // Suppress bad word IDs (e.g., pad token should never be generated)
-                    if (_badWordIds.Contains(v))
-                        continue;
-
-                    float val = logits[0, seqLen - 1, v];
-
-                    // repetition penalty
-                    if (usedTokens.Contains(v))
-                    {
-                        val = val > 0
-                            ? val / repetitionPenalty
-                            : val * repetitionPenalty;
-                    }
-                    
-                    if (val > maxLogit)
-                    {
-                        maxLogit = val;
-                        nextToken = v;
-                    }
-                }
-
-                if (nextToken == _eosTokenId)
-                {
-                    break;
-                }
-
-                decoderInputIds.Add(nextToken);
-                usedTokens.Add(nextToken);
-            }
-
-            // Remove DecoderStartTokenId
-            var outputTokens = decoderInputIds.Skip(1).Select(id => (uint)id).ToArray();
+            // Translate using Beam search
+            var outputTokens = Translate(sourceText);
             var decodedText = _tokenizer.Decode(outputTokens);
 
             return decodedText.Trim();
         }
-    }
 
-    public class GenerationConfig
-    {
-        [JsonPropertyName("bad_words_ids")]
-        public List<List<int>> BadWordsIds { get; set; }
-        [JsonPropertyName("pad_token_id")]
-        public int? PadTokenId { get; set; }
+        public uint[] Translate(string sourceText)
+        {
+            // 1. Tokenize Input
+            long[] encoderInputIds = _tokenizer.Encode(sourceText).Select(id => (long)id).ToArray();
+            int inputLength = encoderInputIds.Length;
+            
+            long[] encoderAttentionMask = Enumerable.Repeat(1L, inputLength).ToArray();
 
-        [JsonPropertyName("eos_token_id")]
-        public int? EosTokenId { get; set; }
+            // 2. Run encoder
+            var encoderInputs = new List<NamedOnnxValue>
+            {
+                NamedOnnxValue.CreateFromTensor("input_ids", new DenseTensor<long>(encoderInputIds, new int[] { 1, inputLength })),
+                NamedOnnxValue.CreateFromTensor("attention_mask", new DenseTensor<long>(encoderAttentionMask, new int[] { 1, inputLength }))
+            };
 
-        [JsonPropertyName("decoder_start_token_id")]
-        public int? DecoderStartTokenId { get; set; }
+            using var encoderResults = _encoderSession.Run(encoderInputs);
+            var lastHiddenState = encoderResults.First().AsTensor<float>();
+            var encoderAttentionMaskTensor = new DenseTensor<long>(encoderAttentionMask, new[] { 1, inputLength });
 
-        [JsonPropertyName("forced_bos_token_id")]
-        public int? ForcedBosTokenId { get; set; }
+            // 3. Initialize beam search state
+            // Each beam stores the generated token sequence and its cumulative log score (starting at 0.0)
+            var beams = new List<(List<int> Tokens, double Score)>
+            {
+                (new List<int> { _decoderStartTokenId }, 0.0)
+            };
 
-        [JsonPropertyName("bos_token_id")]
-        public int? BosTokenId { get; set; }
-        [JsonPropertyName("max_length")]
-        public int? MaxLength { get; set; }
+            var finalCandidates = new List<(List<int> Tokens, double Score)>();
+
+            // 4. Autoregressive text generation loop
+            for (int step = 0; step < _maxLength; step++)
+            {
+                var candidates = new List<(List<int> Tokens, double Score)>();
+                foreach (var beam in beams)
+                {
+                    // If the beam generated an EOS token, move it to the list of completed candidates
+                    if (beam.Tokens.Last() == _eosTokenId && beam.Tokens.Count > 1)
+                    {
+                        finalCandidates.Add(beam);
+                        continue;
+                    }
+
+                    // Prepare decoder inputs
+                    long[] decoderInputIds = beam.Tokens.Select(x => (long)x).ToArray();
+
+                    // Standard Marian ONNX models require these basic inputs
+                    var decoderInputs = new List<NamedOnnxValue>
+                    {
+                        NamedOnnxValue.CreateFromTensor("input_ids", new DenseTensor<long>(decoderInputIds, new int[] { 1, decoderInputIds.Length })),
+                        NamedOnnxValue.CreateFromTensor("encoder_hidden_states", lastHiddenState),
+                        NamedOnnxValue.CreateFromTensor("encoder_attention_mask", encoderAttentionMaskTensor)
+                    };
+
+                    // Execute decoder inference
+                    using var decoderResults = _decoderSession.Run(decoderInputs);
+                    var logits = decoderResults.First().AsTensor<float>(); // Shape: [1, sequence_length, vocab_size]
+
+                    int vocabSize = logits.Dimensions[2]; // Get vocabulary size
+                    int lastTokenOffset = (decoderInputIds.Length - 1) * vocabSize;
+
+                    // Extract logits for the last generated token only
+                    float[] lastLogits = new float[vocabSize];
+                    for (int i = 0; i < vocabSize; i++)
+                    {
+                        lastLogits[i] = logits.GetValue(lastTokenOffset + i);
+                    }
+
+                    // Repetition penalty
+                    foreach (var usedToken in beam.Tokens.Distinct())
+                    {
+                        if (usedToken == _decoderStartTokenId)
+                            continue;
+                        float val = lastLogits[usedToken];
+                        lastLogits[usedToken] = val > 0
+                            ? val / _repetitionPenalty
+                            : val * _repetitionPenalty;
+                    }
+
+                    // Exclude forbidden tokens
+                    foreach (int badWordId in _badWordIds)
+                    {
+                        if (badWordId >= 0 && badWordId < lastLogits.Length)
+                        {
+                            lastLogits[badWordId] = float.NegativeInfinity;
+                        }
+                    }
+
+                    // Apply softmax to obtain log probabilities
+                    var logProbs = ApplySoftmaxAndLog(lastLogits);
+
+                    // Select the Top-N (_numBeams) best token candidates for this beam
+                    var topTokens = logProbs
+                        .Select((logProb, idx) => (Id: idx, LogProb: logProb))
+                        .OrderByDescending(x => x.LogProb)
+                        .Take(_numBeams);
+
+                    foreach (var token in topTokens)
+                    {
+                        var newTokens = new List<int>(beam.Tokens) { token.Id };
+                        candidates.Add((newTokens, beam.Score + token.LogProb));
+                    }
+                }
+
+                // If no new candidates were generated, stop decoding
+                if (candidates.Count == 0) break;
+
+                // Keep the globally best beams across all candidate combinations
+                beams = candidates
+                    .OrderByDescending(x => x.Score)
+                    .Take(_numBeams)
+                    .ToList();
+
+                // Early stopping
+                if (finalCandidates.Count >= _numBeams && finalCandidates.Count != 0)
+                    break;
+
+                // If all active beams reached EOS, decoding can be stopped early
+                if (beams.All(b => b.Tokens.Last() == _eosTokenId))
+                {
+                    finalCandidates.AddRange(beams);
+                    break;
+                }
+            }
+
+            // 5. Select the best final result
+            var bestResult = finalCandidates.Concat(beams)
+                .Where(b => b.Tokens.Count > 1)
+                .OrderByDescending(x => x.Score)
+                .FirstOrDefault();
+
+            // Fallback: return an empty sequence if no valid result was generated
+            if (bestResult.Tokens == null) return Array.Empty<uint>();
+
+            // Remove the decoder start token and EOS token before returning the final sequence
+            return bestResult.Tokens
+                .Where(id => id != _decoderStartTokenId && id != _eosTokenId)
+                .Select(id => (uint)id)
+                .ToArray();
+        }
+
+        private static double[] ApplySoftmaxAndLog(float[] logits)
+        {
+            float max = logits.Max();
+            double sum = 0;
+            double[] exps = new double[logits.Length];
+
+            for (int i = 0; i < logits.Length; i++)
+            {
+                exps[i] = Math.Exp(logits[i] - max);
+                sum += exps[i];
+            }
+
+            double[] logProbs = new double[logits.Length];
+            for (int i = 0; i < logits.Length; i++)
+            {
+                // Directly compute log probabilities for numerical stability and efficient score accumulation
+                logProbs[i] = Math.Log(exps[i] / sum);
+            }
+
+            return logProbs;
+        }
     }
 }
