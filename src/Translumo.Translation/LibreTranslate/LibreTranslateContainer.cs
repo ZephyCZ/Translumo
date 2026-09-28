@@ -1,5 +1,3 @@
-using System.Net;
-using Translumo.Translation.Configuration;
 using Translumo.Utils.Http;
 
 namespace Translumo.Translation.LibreTranslate
@@ -8,15 +6,14 @@ namespace Translumo.Translation.LibreTranslate
     {
         public HttpReader Reader { get; set; }
 
-        public LibreTranslateContainer(Proxy proxy = null, bool isPrimary = false) : base(proxy, isPrimary)
+        public LibreTranslateContainer(bool isPrimary = false) : base(isPrimary)
         {
-            Reader = CreateReader(proxy);
+            Reader = CreateReader();
         }
 
-        private HttpReader CreateReader(Proxy proxy)
+        private HttpReader CreateReader()
         {
             var httpReader = new HttpReader();
-            httpReader.Proxy = proxy?.ToWebProxy();
 
             httpReader.ContentType = "application/json";
             httpReader.UserAgent = "Translumo-Client";

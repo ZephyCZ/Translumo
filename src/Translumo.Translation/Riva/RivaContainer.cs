@@ -7,16 +7,15 @@ namespace Translumo.Translation.Riva
     {
         public HttpReader Reader { get; set; }
 
-        public RivaContainer(Proxy proxy = null, bool isPrimary = false) 
-            : base(proxy, isPrimary)
+        public RivaContainer(bool isPrimary = false) 
+            : base(isPrimary)
         {
-            Reader = CreateReader(proxy);
+            Reader = CreateReader();
         }
 
-        private HttpReader CreateReader(Proxy proxy)
+        private HttpReader CreateReader()
         {
             var httpReader = new HttpReader();
-            httpReader.Proxy = proxy?.ToWebProxy();
 
             httpReader.ContentType = "application/json";
             httpReader.UserAgent = "Translumo-Client-Riva";

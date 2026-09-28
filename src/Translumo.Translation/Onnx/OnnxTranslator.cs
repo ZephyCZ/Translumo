@@ -17,7 +17,7 @@ namespace Translumo.Translation.Onnx
 {
     public class OnnxContainer : TranslationContainer
     {
-        public OnnxContainer() : base(null, true)
+        public OnnxContainer() : base(true)
         {
         }
     }
