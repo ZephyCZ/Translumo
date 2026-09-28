@@ -8,9 +8,9 @@ namespace Translumo.Translation.Google
     {
         public HttpReader Reader { get; set; }
 
-        public GoogleContainer(Proxy proxy = null, bool isPrimary = false) : base(proxy, isPrimary)
+        public GoogleContainer(bool isPrimary = false) : base(isPrimary)
         {
-            Reader = CreateReader(proxy);
+            Reader = CreateReader();
         }
 
         public override void Block()
@@ -19,16 +19,16 @@ namespace Translumo.Translation.Google
             Reader.Cookies = new CookieContainer();
         }
 
-        private HttpReader CreateReader(Proxy proxy)
+        private HttpReader CreateReader()
         {
             var httpReader = new HttpReader();
-            httpReader.Proxy = proxy?.ToWebProxy();
+            httpReader.ThrowExceptions = false;
 
-            httpReader.ContentType = null;
+            httpReader.ContentType = "application/x-www-form-urlencoded; charset=UTF-8";
             httpReader.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
             httpReader.Accept = "*/*";
 
-            httpReader.OptionalHeaders.Add("Accept-Language", "en-US,en;q=0.9");
+            httpReader.OptionalHeaders.Add("Accept-Language", "en-US;q=0.8,en;q=0.7");
             httpReader.OptionalHeaders.Add("Cache-Control", "no-cache");
             httpReader.OptionalHeaders.Add("Referer", "https://translate.google.com/");
 

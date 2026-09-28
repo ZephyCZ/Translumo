@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
+using System.Reflection;
+using System.Threading;
 using System.Xml.Serialization;
 using Microsoft.Extensions.Logging;
 using Translumo.Infrastructure.Encryption;
@@ -12,11 +16,14 @@ namespace Translumo.Configuration
     public class ConfigurationStorage
     {
         private const string ENCRYPTION_PASSWORD = "p@wd!";
+        private const int SAVE_DELAY_MS = 700;
 
         private readonly IServiceProvider _serviceProvider;
         private readonly IEncryptionService _encryptionService;
         private readonly IList<Type> _configurationTypes;
         private readonly ILogger _logger;
+        private readonly object _saveLock = new object();
+        private readonly Timer _saveTimer;
 
         public ConfigurationStorage(IServiceProvider serviceProvider, IEncryptionService encryptionService, ILogger<ConfigurationStorage> logger)
         {
@@ -24,6 +31,7 @@ namespace Translumo.Configuration
             _serviceProvider = serviceProvider;
             _encryptionService = encryptionService;
             _configurationTypes = new List<Type>();
+            _saveTimer = new Timer(_ => SaveConfiguration(), null, Timeout.Infinite, Timeout.Infinite);
         }
 
         public void RegisterConfiguration<TConfiguration>()
@@ -46,7 +54,7 @@ namespace Translumo.Configuration
                 _logger.LogTrace($"Loading configuration from '{confPath}'");
                 using (FileStream fs = new FileStream(confPath, FileMode.Open))
                 {
-                    var decryptedConfig = _encryptionService.Decrypt(fs, ENCRYPTION_PASSWORD);
+                    var decryptedConfig = DropRemovedEngines(_encryptionService.Decrypt(fs, ENCRYPTION_PASSWORD));
                     using (var textReader = new StringReader(decryptedConfig))
                     {
                         savedConfigs = serializer.Deserialize(textReader) as List<object>;
@@ -73,33 +81,74 @@ namespace Translumo.Configuration
             {
                 _logger.LogError($"Unexpected error loading configuration");
             }
+
+            SubscribeToChanges(configurations);
         }
 
+
+        private void SubscribeToChanges(IEnumerable<object> configurations)
+        {
+            foreach (var configuration in configurations)
+            {
+                Subscribe(configuration);
+                foreach (var property in configuration.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                {
+                    if (property.CanRead && property.GetIndexParameters().Length == 0)
+                    {
+                        Subscribe(property.GetValue(configuration));
+                    }
+                }
+            }
+        }
+
+        private void Subscribe(object target)
+        {
+            if (target is INotifyPropertyChanged notifyingTarget)
+            {
+                notifyingTarget.PropertyChanged -= ConfigurationOnPropertyChanged;
+                notifyingTarget.PropertyChanged += ConfigurationOnPropertyChanged;
+            }
+        }
+
+        private void ConfigurationOnPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            _saveTimer.Change(SAVE_DELAY_MS, Timeout.Infinite);
+        }
 
         public void SaveConfiguration()
         {
-            List<object> configurations = _configurationTypes.Select(type => _serviceProvider.GetService(type)).ToList();
-
-            var serializer = new XmlSerializer(typeof(List<object>), _configurationTypes.ToArray());
-            var savePath = GetConfigurationPath();
-            _logger.LogTrace($"Saving configuration to '{savePath}'");
-            try
+            lock (_saveLock)
             {
-                using (MemoryStream ms = new MemoryStream())
+                List<object> configurations = _configurationTypes.Select(type => _serviceProvider.GetService(type)).ToList();
+
+                var serializer = new XmlSerializer(typeof(List<object>), _configurationTypes.ToArray());
+                var savePath = GetConfigurationPath();
+                _logger.LogTrace($"Saving configuration to '{savePath}'");
+                try
                 {
-                    serializer.Serialize(ms, configurations);
-                    ms.Position = 0;
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        serializer.Serialize(ms, configurations);
+                        ms.Position = 0;
 
-                    byte[] encryptedConfig = _encryptionService.Encrypt(ms, ENCRYPTION_PASSWORD);
-                    File.WriteAllBytes(savePath, encryptedConfig);
+                        byte[] encryptedConfig = _encryptionService.Encrypt(ms, ENCRYPTION_PASSWORD);
+                        File.WriteAllBytes(savePath, encryptedConfig);
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Failed to save configuration to '{savePath}'");
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Failed to save configuration to '{savePath}'");
+                }
             }
         }
 
+
+        private static string DropRemovedEngines(string configuration)
+        {
+            configuration = configuration.Replace("<Translator>Papago</Translator>", "<Translator>Google</Translator>");
+
+            return Regex.Replace(configuration, @"\s*<OcrConfiguration xsi:type=""TesseractOCRConfiguration"">.*?</OcrConfiguration>", string.Empty, RegexOptions.Singleline);
+        }
 
         private string GetConfigurationPath()
         {

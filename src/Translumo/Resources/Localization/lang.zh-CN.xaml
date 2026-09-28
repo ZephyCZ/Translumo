@@ -11,11 +11,9 @@
     <system:String x:Key="Str.NewVersion">Translumo更新啦!</system:String>
 
     <!--  Notifications  -->
-    <system:String x:Key="Str.Notification.CaptchaPass" xml:space="preserve">请在网站上完成验证码以使用该服务。&#13;另外，每个已注册的代理可能都需要完成一次验证码。</system:String>
 
     <!--  Titles  -->
     <system:String x:Key="Str.Title.SettingWindow" xml:space="preserve">Translumo设置</system:String>
-    <system:String x:Key="Str.Title.BrowserWindow" xml:space="preserve">Translumo游览器</system:String>
 
     <!--  Tray  -->
     <system:String x:Key="Str.Tray.ShowHideSettings">打开/关闭 设置</system:String>
@@ -30,9 +28,29 @@
     <!--  Language settings  -->
     <system:String x:Key="Str.LangSettings.SourceLang">源语言（您想要翻译的语言）</system:String>
     <system:String x:Key="Str.LangSettings.TranslationLang">目标语言（您想要看到的语言）</system:String>
+    <system:String x:Key="Str.LangSettings.YandexApiKey">Yandex API 密钥</system:String>
+    <system:String x:Key="Str.LangSettings.DeeplApiKey">DeepL API 密钥</system:String>
     <system:String x:Key="Str.LangSettings.Translator">翻译源</system:String>
     <system:String x:Key="Str.LangSettings.TtsSystem">朗读源</system:String>
-    <system:String x:Key="Str.LangSettings.BeamCount">Beam count (1=fastest, 2=recommended, >2=slower)</system:String>
+    <system:String x:Key="Str.LangSettings.TtsVoices">嗓音</system:String>
+    <system:String x:Key="Str.LangSettings.BeamCount">Beam 数数</system:String>
+    <system:String x:Key="Str.LangSettings.BeamCountInfo">(1=最快，2=推荐，>2=较慢)</system:String>
+    <system:String x:Key="Str.LangSettings.LibreServerUrl">服务器 URL</system:String>
+    <system:String x:Key="Str.LangSettings.RunLibre">运行 Libre</system:String>
+    <system:String x:Key="Str.LangSettings.LibreGuideBtn">( ? )</system:String>
+    <system:String x:Key="Str.LangSettings.RivaEndpointUrl">端点 URL</system:String>
+    <system:String x:Key="Str.LangSettings.RivaApiKey">API 密钥</system:String>
+    <system:String x:Key="Str.LangSettings.RivaTestConnection">测试连接</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransAiProvider">AI 提供商</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransApiKey">API 密钥</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransModelIdentifier">机型标识符</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransTestConnection">测试连接</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransDefaultGemini">(默认值:gemini-3.5-flash)</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransDefaultDeepSeek">(默认值: deepseek-v4-flash)</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransDefaultOpenRouter">(默认值: 无)</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransDefaultNIM">(默认值: deepseek-ai/deepseek-v4-flash)</system:String>
+    <system:String x:Key="Str.LangSettings.OnnxInstGuideBtn">( 我 )</system:String>
+    <system:String x:Key="Str.LangSettings.OnnxInstGuideTooltip">安装指南</system:String>
 
     <!--  Hotkeys descriptions  -->
     <system:String x:Key="Str.Hotkeys.ChatVisibility">显示/隐藏 翻译墙</system:String>
@@ -60,6 +78,7 @@
     <system:String x:Key="Str.AppearanceSettings.FontSizePanelCaption">字体大小 — 改变</system:String>
     <system:String x:Key="Str.AppearanceSettings.FontColorPanelCaption">字体颜色 — 改变</system:String>
     <system:String x:Key="Str.AppearanceSettings.KeepFormatting">保留翻译文本原始格式</system:String>
+    <system:String x:Key="Str.AppearanceSettings.TextAlignment">文本对齐</system:String>
     <system:String x:Key="Str.AppearanceSettings.Left">左对齐</system:String>
     <system:String x:Key="Str.AppearanceSettings.Center">居中</system:String>
     <system:String x:Key="Str.AppearanceSettings.Right">右对齐</system:String>
@@ -69,27 +88,18 @@
     <system:String x:Key="Str.AppearanceSettings.Ms">ms</system:String>
 
 
-    <!--  Proxy settings  -->
-    <system:String x:Key="Str.ProxySettings.Proxy">代理</system:String>
-    <system:String x:Key="Str.ProxySettings.IpAddress">IP地址</system:String>
-    <system:String x:Key="Str.ProxySettings.Port">端口</system:String>
-    <system:String x:Key="Str.ProxySettings.Note" xml:space="preserve">使用 IPv4 代理可以避免因大量并发请求而被服务器封禁，&#13;配置多个代理后Translumo会自动分配它们的使用频率。</system:String>
-    <system:String x:Key="Str.ProxySettings.Caption">代理列表</system:String>
 
 
     <!--  OCR settings  -->
-    <system:String x:Key="Str.OcrSettings.TesseractOcr">Tesseract OCR</system:String>
     <system:String x:Key="Str.OcrSettings.WindowsOcr">Windows OCR</system:String>
     <system:String x:Key="Str.OcrSettings.EasyOcr">EasyOCR</system:String>
-    <system:String x:Key="Str.OcrSettings.TesseractOcrDesc" xml:space="preserve">Tesseract 5.0，采用LSTM mode。它是早期最流行的开源OCR（图文识别）解决方案之一。&#13;&#13;能够识别纯色背景排版、字体不复杂的简单文本。&#13;&#13;&lt;Bold&gt;性能影响:&lt;/Bold&gt; 低</system:String>
-    <system:String x:Key="Str.OcrSettings.WindowsOcrDesc" xml:space="preserve">微软原生OCR解决方案。能够处理比Tesseract更复杂的背景。&#13;&#13;&lt;Bold&gt;性能影响:&lt;/Bold&gt; 中</system:String>
+    <system:String x:Key="Str.OcrSettings.WindowsOcrDesc" xml:space="preserve">微软原生OCR解决方案。可很好地处理复杂背景和字体。&#13;&#13;&lt;Bold&gt;性能影响:&lt;/Bold&gt; 中</system:String>
     <system:String x:Key="Str.OcrSettings.WindowsOcrDesc2">可能需要安装其他语言包。</system:String>
     <system:String x:Key="Str.OcrSettings.EasyOcrDesc" xml:space="preserve">Jaided AI出品的最先进的开源OCR解决方案。&#13;&#13;即使在识别复杂的背景以及花哨的字体时，也能实现高精度的文本识别。&#13;&#13;&lt;Bold&gt;性能影响:&lt;/Bold&gt; 高</system:String>
     <system:String x:Key="Str.OcrSettings.EasyOcrDesc2">需要安装（Python、PyTorch）其他软件包。</system:String>
 
     <!--  About window  -->
-    <system:String x:Key="Str.About.MaintainedBy">共同维护者：Aleksei Vekhov</system:String>
-    <system:String x:Key="Str.About.DevelopedBy">开发者：Danil Iushkov</system:String>
+    <system:String x:Key="Str.About.Authors">作者：Aleksei Vekhov、Danil Iushkov 及 Translumo 社区</system:String>
     <system:String x:Key="Str.About.ProjectPage">项目主页</system:String>
     <system:String x:Key="Str.About.ReportIssue">意见与反馈</system:String>
 
@@ -156,14 +166,20 @@
     <system:String x:Key="Str.Stages.SwitchLanguage">正在切换语言...</system:String>
     <system:String x:Key="Str.Stages.SwitchLanguageError">切换语言失败：‘{0}’</system:String>
     <system:String x:Key="Str.Stages.TtsNotSupportLanguageTemplate">{0} “{1}” 不支持 “{2}” 语言。</system:String>
+    <system:String x:Key="Str.Stages.LibreTranslateGuideTitle">LibreTranslate 安装指南</system:String>
+    <system:String x:Key="Str.Stages.LibreTranslateGuide" xml:space="preserve">LibreTranslate 设置指南&#13;&#13;若要在本地使用 LibreTranslate，您只需进行安装即可。Translumo 会自动为您运行服务器。&#13;&#13;第 1 步：准备工作&#13;确保您的计算机上已安装 Python（可从 python.org 下载）。&#13;&#13;第 2 步：安装 LibreTranslate&#13;打开命令提示符 (CMD) 或终端。复制并粘贴以下命令，然后按回车键：&#13;&#13;> pip install libretranslate&#13;&#13;第 3 步：下载语言模型&#13;确保您选择的语言已下载到本地存储库中。若要下载某种语言（例如英语到韩语），请运行：&#13;&#13;> argospm update&#13;> argospm install tr​​anslate-en_ko&#13;> argospm install tr​​anslate-ko_en&#13;&#13;如需查看完整的语言代码列表，请访问：&#13;https://docs.libretranslate.com/guides/supported_languages/&#13;&#13;您无需再手动运行服务器。Translumo 会根据您选择的语言自动处理！</system:String>
+    <system:String x:Key="Str.Stages.OnnxGuideTitle">信息</system:String>
+    <system:String x:Key="Str.Stages.OnnxGuideText" xml:space="preserve">该应用会自动下载所选翻译方向对应的 ONNX 模型。此过程可能需要几分钟。如果长时间后 `Models\YourLanguage` 文件夹仍为空，则说明未找到模型或无法下载。您可以尝试从 HuggingFace 网站手动下载。</system:String>
+    <system:String x:Key="Str.Stages.OnnxManualGuide" xml:space="preserve">如何手动添加新的语言模型（例如：日语到印尼语 / ja-id）&#13;&#13;1. 在应用程序的“Models”目录下创建一个名为“ja-id”的文件夹。&#13;&#13;2. 从 HuggingFace 下载以下文件，并将其放入该文件夹中：&#13; - encoder_model.onnx&#13; - decoder_model.onnx&#13; - generation_config.json&#13; - tokenizer.json&#13;3. 使用记事本（Notepad）打开“tokenizer.json”，找到包含 `'normalizer': null` 的行并将其删除。&#13;&#13;4. 在应用程序中选择相应的源语言和目标语言即可使用！</system:String>
 
     <!--  Buttons  -->
-    <system:String x:Key="Str.Button.SettingProxy">配置代理</system:String>
     <system:String x:Key="Str.Button.ShowText">示例文本</system:String>
     <system:String x:Key="Str.Button.Apply">接受</system:String>
 
-    <system:String x:Key="Str.Lookupper.ProjectNote">我的项目首页:</system:String>
-    <system:String x:Key="Str.Lookupper.Url">https://lookupper.com</system:String>
+    <system:String x:Key="Str.UnhandledError">发生意外错误：&#13;&#13;{0}&#13;&#13;程序将继续运行，但某些功能可能不正常。详情见日志文件。</system:String>
+    <system:String x:Key="Str.Lookupper.ProjectNote">我的另一个项目</system:String>
+    <system:String x:Key="Str.Lookupper.LinkText">Lookupper — 通过游戏学习语言 →</system:String>
+    <system:String x:Key="Str.Lookupper.Url">https://cn.lookupper.com</system:String>
 
 
 </ResourceDictionary>

@@ -1,13 +1,10 @@
-﻿
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System.Transactions;
 using System.Web;
+using Microsoft.Extensions.Logging;
 using Translumo.Infrastructure.Language;
 using Translumo.Translation.Configuration;
 using Translumo.Translation.Exceptions;
@@ -17,95 +14,104 @@ namespace Translumo.Translation.Google
 {
     public class GoogleTranslator : BaseTranslator<GoogleContainer>
     {
-        private const string TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single?client=gtx&sl={0}&tl={1}&dt=t&q={2}";
+        private const string TRANSLATE_URL =
+            "https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&ie=UTF-8&oe=UTF-8&sl={0}&tl={1}";
+
+        private const string RESERVE_TRANSLATE_URL =
+            "https://clients5.google.com/translate_a/t?client=dict-chrome-ex&ie=UTF-8&oe=UTF-8&sl={0}&tl={1}";
 
         public GoogleTranslator(TranslationConfiguration translationConfiguration, LanguageService languageService, ILogger logger) 
             : base(translationConfiguration, languageService, logger)
         {
         }
 
-        public override Task<string> TranslateTextAsync(string sourceText)
-        {
-            //TODO: Temp implementation for specific lang
-            if (TargetLangDescriptor.Language == Languages.PortugueseBrazil)
-            {
-                throw new TransactionException("Google translate is unavailable for this language");
-            }
-
-            return base.TranslateTextAsync(sourceText);
-        }
-
         protected override async Task<string> TranslateTextInternal(GoogleContainer container, string sourceText)
         {
-            if (string.IsNullOrWhiteSpace(sourceText))
+            var sourceLangCode = SourceLangDescriptor.IsoCode;
+            var targetLangCode = TargetLangDescriptor.RegionalVariant ? TargetLangDescriptor.Code : TargetLangDescriptor.IsoCode;
+            var requestData = $"q={HttpUtility.UrlEncode(sourceText)}";
+
+            var response = await container.Reader
+                .RequestWebDataAsync(string.Format(TRANSLATE_URL, sourceLangCode, targetLangCode), HttpMethods.POST, requestData)
+                .ConfigureAwait(false);
+            if (TryReadTranslation(response, out var translation))
             {
-                return string.Empty;
+                return translation;
             }
 
-            string sourceLanguage = SourceLangDescriptor.Code;
-            string targetLanguage = TargetLangDescriptor.Code;
+            Logger.LogTrace($"Primary google endpoint is unavailable ({DescribeFailure(response)}), trying reserve one");
 
-            var url = string.Format(TRANSLATE_URL, sourceLanguage, targetLanguage, HttpUtility.UrlEncode(sourceText));
-
-            var requestResult = await container.Reader.RequestWebDataAsync(url, HttpMethods.GET, null);
-
-            if (!requestResult.IsSuccessful)
+            var reserveResponse = await container.Reader
+                .RequestWebDataAsync(string.Format(RESERVE_TRANSLATE_URL, sourceLangCode, targetLangCode), HttpMethods.POST, requestData)
+                .ConfigureAwait(false);
+            if (TryReadTranslation(reserveResponse, out translation))
             {
-                container.Block(); // clean cookies for the next attempt
-                throw new TranslationException($"Google Translate request failed or timed out.");
+                return translation;
+            }
+
+            throw new TranslationException($"Unexpected web response: '{DescribeFailure(reserveResponse)}'");
+        }
+        
+        protected override IList<GoogleContainer> CreateContainers(TranslationConfiguration configuration)
+        {
+            return new List<GoogleContainer> { new GoogleContainer(isPrimary: true) };
+        }
+
+        private static bool TryReadTranslation(HttpResponse response, out string translation)
+        {
+            translation = null;
+            if (!response.IsSuccessful || string.IsNullOrEmpty(response.Body))
+            {
+                return false;
             }
 
             try
             {
-                // Parsing the returned JSON array from ://googleapis.com
-                using (JsonDocument doc = JsonDocument.Parse(requestResult.Body))
+                using var document = JsonDocument.Parse(response.Body);
+                var root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() == 0)
                 {
-                    var rootArray = doc.RootElement;
+                    return false;
+                }
 
-                    // Verify the structure of the Google JSON response: [[[ "translation", "original", ... ]]]
-                    if (rootArray.ValueKind == JsonValueKind.Array && rootArray.GetArrayLength() > 0)
+                var payload = root[0];
+                if (payload.ValueKind == JsonValueKind.String)
+                {
+                    translation = payload.GetString();
+
+                    return !string.IsNullOrEmpty(translation);
+                }
+
+                if (payload.ValueKind != JsonValueKind.Array)
+                {
+                    return false;
+                }
+
+                var builder = new StringBuilder();
+                foreach (var sentence in payload.EnumerateArray())
+                {
+                    if (sentence.ValueKind == JsonValueKind.String)
                     {
-                        var firstElement = rootArray[0];
-                        if (firstElement.ValueKind == JsonValueKind.Array)
-                        {
-                            StringBuilder translatedText = new StringBuilder();
-
-                            // Iterate through individual segments/sentences of the text
-                            foreach (JsonElement segment in firstElement.EnumerateArray())
-                            {
-                                if (segment.ValueKind == JsonValueKind.Array && segment.GetArrayLength() > 0)
-                                {
-                                    var textPart = segment[0];
-                                    if (textPart.ValueKind == JsonValueKind.String)
-                                    {
-                                        translatedText.Append(textPart.GetString());
-                                    }
-                                }
-                            }
-
-                            if (translatedText.Length > 0)
-                            {
-                                return translatedText.ToString();
-                            }
-                        }
+                        builder.Append(sentence.GetString());
+                    }
+                    else if (sentence.ValueKind == JsonValueKind.Array && sentence.GetArrayLength() > 0 &&
+                             sentence[0].ValueKind == JsonValueKind.String)
+                    {
+                        builder.Append(sentence[0].GetString());
                     }
                 }
+
+                translation = builder.ToString();
+
+                return translation.Length > 0;
             }
-            catch (Exception ex)
+            catch (JsonException)
             {
-                container.Block();
-                throw new TranslationException("Failed to parse Google Translate JSON response.", ex);
+                return false;
             }
-
-            throw new TranslationException("Google Translate returned an empty or unexpected response structure.");
         }
 
-        protected override IList<GoogleContainer> CreateContainers(TranslationConfiguration configuration)
-        {
-            var result = configuration.ProxySettings.Select(proxy => new GoogleContainer(proxy)).ToList();
-            result.Add(new GoogleContainer(isPrimary: true));
-
-            return result;
-        }
+        private static string DescribeFailure(HttpResponse response) =>
+            response.InnerException?.Message ?? response.Body ?? "empty response";
     }
 }

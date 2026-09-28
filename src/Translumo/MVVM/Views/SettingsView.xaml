@@ -1,4 +1,4 @@
-<Window
+﻿<Window
     x:Class="Translumo.MVVM.Views.SettingsView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -42,21 +42,17 @@
             <views:OcrSettingsView />
         </DataTemplate>
         <common:CaseConverter x:Key="CaseConverter" Case="Upper" />
-        <common:BoolBrushConverter
-            x:Key="HasUpdatesConverter"
-            FalseBrush="{StaticResource PrimaryHueLightBrush}"
-            TrueBrush="{StaticResource WarningBrush}" />
         <system:Boolean x:Key="ConfirmationClose">True</system:Boolean>
     </Window.Resources>
 
-    <Border Background="{DynamicResource MaterialDesignPaper}">
+    <Border Background="{DynamicResource SecondaryHueLightBrush}">
         <materialDesign:DialogHost CloseOnClickAway="{Binding DialogService.AllowCloseOnClickAway}" IsOpen="{Binding DialogService.IsOpen}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="250" />
                     <ColumnDefinition />
                 </Grid.ColumnDefinitions>
-                <Grid Grid.Column="0" Background="{StaticResource PrimaryHueDarkBrush}">
+                <Grid Grid.Column="0" Background="{DynamicResource ChromeBackgroundBrush}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="68" />
                         <RowDefinition Height="*" />
@@ -66,29 +62,32 @@
                     <Image
                         Grid.Row="0"
                         Height="37"
-                        Margin="10,0,0,0"
+                        Margin="16,0,0,0"
                         HorizontalAlignment="Left"
                         RenderOptions.BitmapScalingMode="HighQuality"
                         Source="../../Resources/Icons/logo_full.png" />
                     <DockPanel Grid.Row="1">
-                        <materialDesign:ColorZone Mode="PrimaryDark">
+                        <materialDesign:ColorZone
+                            Background="{DynamicResource ChromeBackgroundBrush}"
+                            Foreground="{DynamicResource ChromeForegroundBrush}"
+                            Mode="Custom">
                             <mde:SideNavigation
                                 Name="SnMenu"
                                 Height="{Binding Path=ActualHeight, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type Window}}}"
-                                IconForeground="{DynamicResource MaterialDesignDarkForeground}"
+                                IconForeground="{DynamicResource ChromeForegroundBrush}"
                                 Items="{Binding Path=NavigationItems, Mode=OneTime}"
-                                LabelForeground="#FFFAFAFA"
+                                LabelForeground="{DynamicResource ChromeForegroundBrush}"
                                 Loaded="SnMenu_Loaded"
                                 NavigationItemFeedback="{DynamicResource SecondaryHueLightBrush}"
                                 NavigationItemSelectedCommand="{Binding NavigationItemSelectedCommand}"
-                                SelectionBackground="{DynamicResource MaterialDesignBackground}"
-                                SelectionForeground="{DynamicResource MaterialDesignBackground}"
+                                SelectionBackground="{DynamicResource ChromeSelectionBrush}"
+                                SelectionForeground="{DynamicResource ChromeForegroundBrush}"
                                 Style="{DynamicResource MaterialSideNavigationBlock}" />
                         </materialDesign:ColorZone>
                     </DockPanel>
                     <DockPanel Grid.Row="2" ZIndex="1000">
                         <ListView
-                            Margin="8,0,0,0"
+                            Margin="16,0,0,0"
                             DockPanel.Dock="Left"
                             ItemContainerStyle="{StaticResource OutlinedListViewItem}"
                             ItemsSource="{Binding AvailableLanguages}"
@@ -96,7 +95,7 @@
                             SelectedValuePath="Name">
                             <ListView.ItemTemplate>
                                 <DataTemplate>
-                                    <Label Content="{Binding TwoLetterISOLanguageName, Converter={StaticResource CaseConverter}}" Style="{StaticResource LightLabel}" />
+                                    <Label Content="{Binding TwoLetterISOLanguageName, Converter={StaticResource CaseConverter}}" Style="{StaticResource ChromeLabel}" />
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                             <ListView.ItemsPanel>
@@ -111,31 +110,35 @@
                             Command="{Binding AboutDialogOpenedCommand}"
                             DockPanel.Dock="Right"
                             Style="{StaticResource SystemAdditionalButton}">
-                            <wpf:PackIcon
-                                Foreground="{Binding HasUpdates, Mode=OneWay, Converter={StaticResource HasUpdatesConverter}}"
-                                Kind="Information"
-                                Style="{StaticResource SystemAdditionalIcon}" />
+                            <wpf:PackIcon Kind="Information">
+                                <wpf:PackIcon.Style>
+                                    <Style BasedOn="{StaticResource SystemAdditionalIcon}" TargetType="{x:Type wpf:PackIcon}">
+                                        <Setter Property="Foreground" Value="{DynamicResource ChromeForegroundBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasUpdates, Mode=OneWay}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </wpf:PackIcon.Style>
+                            </wpf:PackIcon>
                         </Button>
                     </DockPanel>
                     <Button
                         Grid.Row="3"
-                        Height="105"
-                        Padding="0"
-                        Background="White"
-                        BorderThickness="0,0,1,0"
                         Click="OnLookupperLinkClick"
-                        Cursor="Hand">
+                        Style="{StaticResource NavFooterButton}">
                         <StackPanel>
                             <TextBlock
-                                Margin="12,8,0,0"
-                                FontSize="18"
+                                FontWeight="SemiBold"
+                                Foreground="{DynamicResource ChromeForegroundBrush}"
+                                Style="{StaticResource TextBlockBase}"
                                 Text="{DynamicResource Str.Lookupper.ProjectNote}" />
-                            <Image
-                                Height="60"
-                                Margin="14,8,14,14"
-                                HorizontalAlignment="Left"
-                                RenderOptions.BitmapScalingMode="HighQuality"
-                                Source="../../Resources/Icons/lookupper.png" />
+                            <TextBlock
+                                Margin="0,4,0,0"
+                                Foreground="{DynamicResource ChromeForegroundBrush}"
+                                Style="{StaticResource TextBlockBase}"
+                                Text="{DynamicResource Str.Lookupper.LinkText}" />
                         </StackPanel>
                     </Button>
                 </Grid>
