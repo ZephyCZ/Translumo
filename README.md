@@ -9,13 +9,16 @@
 <p align="center"><strong>English</strong> | <a href="docs/README-RU.md"><strong>Русский</strong></a></p>
 
 ---
+# 🚀 Version 1.6 + 1.1.0 Update
+
+This version of **Translumo** combines all the modifications from version 1.1.0 by the original author, [ramjke](https://github.com/ramjke/Translumo/), with the changes from this fork by [Casezy](https://github.com/Casezy/Translumo/) and [Zephy](https://github.com/ZephyCZ/Translumo/).
 
 # 🚀 Version 1.6 Update: What's New & Fixed?
 
 This version of **Translumo** has been updated to Version 1.6, fixed Google, Yandex and ONNX translator.
 
 ## ✨ New Features & UI Enhancements
-1. **ONNX translator**: Added a repetition penalty to improve the translation.
+1. **ONNX translator**: Added a repetition penalty to improve the translation. The text translation method has been changed from Greedy Search to Beam Search, enabling greater translation accuracy. The number of branches used for translation evaluation is user-configurable.
 2. **ONNX Language Setup Guide**: Text update.
 3. **Settings Window Languages**: remove vertical scroll bar. Text is wrapped.
 
