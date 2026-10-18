@@ -132,10 +132,10 @@ namespace Translumo.HotKeys
 
         public GamepadHotKeyInfo ShowSelectionAreaGamepadKey
         {
-            get => _showSelctionAreaGamepadKey;
+            get => _showSelectionAreaGamepadKey;
             set
             {
-                SetProperty(ref _showSelctionAreaGamepadKey, value);
+                SetProperty(ref _showSelectionAreaGamepadKey, value);
             }
         }
 
@@ -190,7 +190,7 @@ namespace Translumo.HotKeys
         private GamepadHotKeyInfo _selectAreaGamepadKey;
         private GamepadHotKeyInfo _translationStateGamepadKey;
         private GamepadHotKeyInfo _settingVisibilityGamepadKey;
-        private GamepadHotKeyInfo _showSelctionAreaGamepadKey;
+        private GamepadHotKeyInfo _showSelectionAreaGamepadKey;
         private GamepadHotKeyInfo _onceTranslateGamepadKey;
         private GamepadHotKeyInfo _windowStyleChangeGamepadKey = new GamepadHotKeyInfo(GamepadKeyCode.None);
         private GamepadHotKeyInfo _clearChatGamepadKey = new GamepadHotKeyInfo(GamepadKeyCode.None);

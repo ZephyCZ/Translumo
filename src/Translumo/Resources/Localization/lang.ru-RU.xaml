@@ -11,11 +11,9 @@
     <system:String x:Key="Str.NewVersion">Доступна новая версия!</system:String>
 
     <!--  Notifications  -->
-    <system:String x:Key="Str.Notification.CaptchaPass" xml:space="preserve">Пожалуйста пройдите капчу для использования сервиса&#13;Это окно может появиться для каждого задействованного прокси.</system:String>
 
     <!--  Titles  -->
     <system:String x:Key="Str.Title.SettingWindow" xml:space="preserve">Настройки - Translumo</system:String>
-    <system:String x:Key="Str.Title.BrowserWindow" xml:space="preserve">Браузер - Translumo</system:String>
 
     <!--  Tray  -->
     <system:String x:Key="Str.Tray.ShowHideSettings">Показать/Скрыть настройки</system:String>
@@ -30,9 +28,29 @@
     <!--  Language settings  -->
     <system:String x:Key="Str.LangSettings.SourceLang">Исходный язык</system:String>
     <system:String x:Key="Str.LangSettings.TranslationLang">Язык перевода</system:String>
+    <system:String x:Key="Str.LangSettings.YandexApiKey">Ключ API Яндекса</system:String>
+    <system:String x:Key="Str.LangSettings.DeeplApiKey">Ключ API DeepL</system:String>
     <system:String x:Key="Str.LangSettings.Translator">Переводчик</system:String>
     <system:String x:Key="Str.LangSettings.TtsSystem">Синтез речи (TTS)</system:String>
-    <system:String x:Key="Str.LangSettings.BeamCount">Beam count (1=fastest, 2=recommended, >2=slower)</system:String>
+    <system:String x:Key="Str.LangSettings.TtsVoices">Голоса</system:String>
+    <system:String x:Key="Str.LangSettings.BeamCount">Beam подсчет</system:String>
+    <system:String x:Key="Str.LangSettings.BeamCountInfo">(1=самый быстрый, 2=рекомендуется, >2=медленнее)</system:String>
+    <system:String x:Key="Str.LangSettings.LibreServerUrl">URL-адрес сервера</system:String>
+    <system:String x:Key="Str.LangSettings.RunLibre">Запустите Libre</system:String>
+    <system:String x:Key="Str.LangSettings.LibreGuideBtn">( ? )</system:String>
+    <system:String x:Key="Str.LangSettings.RivaEndpointUrl">URL-адрес</system:String>
+    <system:String x:Key="Str.LangSettings.RivaApiKey">Ключ API</system:String>
+    <system:String x:Key="Str.LangSettings.RivaTestConnection">Проверить соединение</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransAiProvider">Поставщик ИИ</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransApiKey">Ключ API</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransModelIdentifier">Идентификатор модели</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransTestConnection">Проверить соединение</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransDefaultGemini">(По умолчанию: gemini-3.5-flash)</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransDefaultDeepSeek">(По умолчанию: deepseek-v4-flash)</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransDefaultOpenRouter">(По умолчанию: нет)</system:String>
+    <system:String x:Key="Str.LangSettings.AiTransDefaultNIM">(По умолчанию: deepseek-ai/deepseek-v4-flash)</system:String>
+    <system:String x:Key="Str.LangSettings.OnnxInstGuideBtn">( и )</system:String>
+    <system:String x:Key="Str.LangSettings.OnnxInstGuideTooltip">Руководство по установке</system:String>
 
     <!--  Hotkeys descriptions  -->
     <system:String x:Key="Str.Hotkeys.ChatVisibility">Показать/скрыть окно перевода</system:String>
@@ -69,27 +87,18 @@
     <system:String x:Key="Str.AppearanceSettings.AutoClearTexts2">после бездействия</system:String>
     <system:String x:Key="Str.AppearanceSettings.Ms">мс</system:String>
 
-    <!--  Proxy settings  -->
-    <system:String x:Key="Str.ProxySettings.Proxy">Прокси</system:String>
-    <system:String x:Key="Str.ProxySettings.IpAddress">IP адрес</system:String>
-    <system:String x:Key="Str.ProxySettings.Port">Порт</system:String>
-    <system:String x:Key="Str.ProxySettings.Note" xml:space="preserve">Используйте IPv4 прокси чтобы избежать блокировки со стороны сервисов перевода за множественные запросы.&#13;Приложение будет равномерно использовать пул доступных прокси между запросами.</system:String>
-    <system:String x:Key="Str.ProxySettings.Caption">Список прокси — изменить</system:String>
 
 
     <!--  OCR settings  -->
-    <system:String x:Key="Str.OcrSettings.TesseractOcr">Tesseract OCR</system:String>
     <system:String x:Key="Str.OcrSettings.WindowsOcr">Windows OCR</system:String>
     <system:String x:Key="Str.OcrSettings.EasyOcr">EasyOCR</system:String>
-    <system:String x:Key="Str.OcrSettings.TesseractOcrDesc" xml:space="preserve">Tesseract 5.0 в LSTM режиме. Одно из самых популярных и ранних open-source OCR решений.&#13;Стабильно определяет текст с простым шрифтом и идеальным однотонным фоном.&#13;&lt;Bold&gt;Влияние на производительность:&lt;/Bold&gt; небольшое</system:String>
-    <system:String x:Key="Str.OcrSettings.WindowsOcrDesc" xml:space="preserve">Нативное OCR решение от Microsoft. Способно работать с более сложным фоном и&#13;шрифтами, чем Tesseract.&#13;&lt;Bold&gt;Влияние на производительность:&lt;/Bold&gt; минимальное</system:String>
+    <system:String x:Key="Str.OcrSettings.WindowsOcrDesc" xml:space="preserve">Нативное OCR решение от Microsoft. Хорошо справляется со сложным фоном и шрифтами.&#13;&lt;Bold&gt;Влияние на производительность:&lt;/Bold&gt; минимальное</system:String>
     <system:String x:Key="Str.OcrSettings.WindowsOcrDesc2">Необходима установка дополнительных языковых пакетов</system:String>
     <system:String x:Key="Str.OcrSettings.EasyOcrDesc" xml:space="preserve">Наиболее продвинутое open-source OCR решение от Jaided AI.&#13;Высокая точность определение даже со сложным фоном и нестандартными шрифтами.&#13;&lt;Bold&gt;Влияние на производительность:&lt;/Bold&gt; высокое</system:String>
     <system:String x:Key="Str.OcrSettings.EasyOcrDesc2">Необходима установка дополнительных модулей (Python, PyTorch)</system:String>
 
     <!--  About window  -->
-    <system:String x:Key="Str.About.MaintainedBy">Создатель Алексей Вехов</system:String>
-    <system:String x:Key="Str.About.DevelopedBy">Автор Данил Юшков</system:String>
+    <system:String x:Key="Str.About.Authors">Авторы Алексей Вехов, Данил Юшков и сообщество Translumo</system:String>
     <system:String x:Key="Str.About.ProjectPage">Страница проекта</system:String>
     <system:String x:Key="Str.About.ReportIssue">Сообщить о проблеме</system:String>
 
@@ -156,13 +165,19 @@
     <system:String x:Key="Str.Stages.SwitchLanguage">Смена языка...</system:String>
     <system:String x:Key="Str.Stages.SwitchLanguageError">Ошибка смены языка: '{0}'</system:String>
     <system:String x:Key="Str.Stages.TtsNotSupportLanguageTemplate">{0} '{1}' не поддерживает '{2}' язык</system:String>
+    <system:String x:Key="Str.Stages.LibreTranslateGuideTitle">LibreTranslate Руководство по настройке</system:String>
+    <system:String x:Key="Str.Stages.LibreTranslateGuide" xml:space="preserve">LibreTranslate Руководство по настройке&#13;&#13;Чтобы использовать LibreTranslate локально, достаточно просто установить его. Translumo автоматически запустит сервер.&#13;&#13;Шаг 1: Предварительные требования&#13;Убедитесь, что на вашем компьютере установлен Python (скачать можно с сайта python.org).&#13;&#13;Шаг 2: Установка LibreTranslate&#13;Откройте командную строку (CMD) или терминал. Скопируйте и вставьте приведенную ниже команду, затем нажмите Enter:&#13;&#13;> pip install libretranslate&#13;&#13;Шаг 3: Загрузка языковых моделей&#13;Убедитесь, что выбранный вами язык загружен в локальное хранилище. Чтобы загрузить язык (например, для перевода с английского на корейский), выполните следующие команды:&#13;&#13;> argospm update&#13;> argospm install translate-en_ko&#13;> argospm install translate-ko_en&#13;&#13;Полный список кодов языков можно найти здесь:&#13;https://docs.libretranslate.com/guides/supported_languages/&#13;&#13;Вам больше не нужно запускать сервер вручную. Translumo сделает это автоматически в зависимости от выбранных вами языков!</system:String>
+    <system:String x:Key="Str.Stages.OnnxGuideTitle">Информация</system:String>
+    <system:String x:Key="Str.Stages.OnnxGuideText" xml:space="preserve">Приложение автоматически загрузит модель ONNX для выбранного направления перевода. Это может занять несколько минут. Если даже спустя длительное время папка «Models\YourLanguage» по-прежнему пуста, это означает, что модель не была найдена или её не удалось загрузить. Вы можете попробовать загрузить её вручную с сайта HuggingFace.</system:String>
+    <system:String x:Key="Str.Stages.OnnxManualGuide" xml:space="preserve">КАК ВРУЧНУЮ ДОБАВИТЬ НОВУЮ ЯЗЫКОВУЮ МОДЕЛЬ&#13;(например, с японского на индонезийский / ja-id)&#13;&#13;1. Создайте папку с названием «ja-id» внутри директории «Models» приложения.&#13;&#13;2. Скачайте (с сайта HuggingFace):&#13; - encoder_model.onnx&#13; - decoder_model.onnx&#13; - generation_config.json&#13; - tokenizer.json&#13; и поместите их в эту папку.&#13;&#13;3. Откройте файл «tokenizer.json» в «Блокноте», найдите строку&#13; «normalizer»: null и удалите её.&#13;&#13;4. Выберите соответствующие исходный и целевой языки в приложении, чтобы начать использование!</system:String>
 
     <!--  Buttons  -->
-    <system:String x:Key="Str.Button.SettingProxy">Настроить прокси</system:String>
     <system:String x:Key="Str.Button.ShowText">Показать пример текста</system:String>
     <system:String x:Key="Str.Button.Apply">Применить</system:String>
 
-    <system:String x:Key="Str.Lookupper.ProjectNote">Мой главный проект:</system:String>
+    <system:String x:Key="Str.UnhandledError">Произошла непредвиденная ошибка:&#13;&#13;{0}&#13;&#13;Программа продолжит работу, но что-то может работать неправильно. Подробности в файле лога.</system:String>
+    <system:String x:Key="Str.Lookupper.ProjectNote">Мой другой проект</system:String>
+    <system:String x:Key="Str.Lookupper.LinkText">Lookupper — изучение языка через игры →</system:String>
     <system:String x:Key="Str.Lookupper.Url">https://lookupper.ru</system:String>
 
 </ResourceDictionary>

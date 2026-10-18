@@ -5,6 +5,8 @@ using Serilog.Core;
 using Serilog.Events;
 using SharpDX.XInput;
 using System;
+using System.Globalization;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -13,7 +15,6 @@ using Translumo.Configuration;
 using Translumo.Dialog;
 using Translumo.HotKeys;
 using Translumo.Infrastructure.Constants;
-using Translumo.Infrastructure.Dispatching;
 using Translumo.Infrastructure.Encryption;
 using Translumo.Infrastructure.Language;
 using Translumo.Infrastructure.MachineLearning;
@@ -43,6 +44,7 @@ namespace Translumo
     {
         private readonly ServiceProvider _serviceProvider;
         private readonly ILogger _logger;
+        private readonly HashSet<string> _reportedErrors = new HashSet<string>();
 
         public App()
         {
@@ -79,17 +81,42 @@ namespace Translumo
 
         private void CurrentDomainOnUnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            _logger.LogCritical(e.ExceptionObject as Exception, "Unhandled app exception");
+            var exception = e.ExceptionObject as Exception;
+            _logger.LogCritical(exception, "Unhandled app exception");
+            ShowUnhandledException(exception);
         }
 
         private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
             _logger.LogCritical(e.Exception, "Unhandled app exception");
+            e.Handled = true;
+            ShowUnhandledException(e.Exception);
+        }
+
+        private void ShowUnhandledException(Exception exception)
+        {
+            try
+            {
+                var message = exception?.Message ?? string.Empty;
+                if (!_reportedErrors.Add(message))
+                {
+                    return;
+                }
+
+                var template = LocalizationManager.GetValue("Str.UnhandledError", true) ?? "Unexpected error: {0}";
+                MessageBox.Show(string.Format(template, message), "Translumo", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to report unhandled exception");
+            }
         }
 
         protected override void OnExit(ExitEventArgs e)
         {
             base.OnExit(e);
+
+            ThemeManager.StopFollowingSystemTheme();
 
             var configurationStorage = _serviceProvider.GetService<ConfigurationStorage>();
             configurationStorage.SaveConfiguration();
@@ -106,8 +133,13 @@ namespace Translumo
 
             CheckIfPathsIsASCII();
 
+            ThemeManager.StartFollowingSystemTheme();
+
             var configurationStorage = _serviceProvider.GetService<ConfigurationStorage>();
             configurationStorage.LoadConfiguration();
+
+            var systemConfiguration = _serviceProvider.GetService<SystemConfiguration>();
+            LocalizationManager.ChangeAppCulture(new CultureInfo(systemConfiguration.ApplicationCulture));
 
             var chatViewModel = _serviceProvider.GetService<ChatWindowViewModel>();
             var dialogService = _serviceProvider.GetService<DialogService>();
@@ -138,6 +170,7 @@ namespace Translumo
             var chatMediatorInstance = new ChatUITextMediator();
             services.AddSingleton<IChatTextMediator, ChatUITextMediator>(provider => chatMediatorInstance);
             services.AddSingleton<ChatUITextMediator>(chatMediatorInstance);
+            services.AddSingleton<Services.AnkiService>();
             services.AddSingleton<ChatWindowViewModel>();
             services.AddSingleton<ChatWindowModel>();
             services.AddSingleton<HotKeysServiceManager>();
@@ -146,7 +179,6 @@ namespace Translumo
             services.AddSingleton<LanguageService>();
             services.AddSingleton<LibreTranslateManager>();
             services.AddSingleton<TextDetectionProvider>();
-            services.AddSingleton<IActionDispatcher, InteractionActionDispatcher>();
             services.AddSingleton<TextValidityPredictor>();
             services.AddSingleton<IControllerService, GamepadService>();
             services.AddSingleton<IControllerInputProvider, ControllerInputProvider>();

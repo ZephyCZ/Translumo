@@ -185,10 +185,7 @@ namespace Translumo.Translation.Ai
 
         protected override IList<AiContainer> CreateContainers(TranslationConfiguration configuration)
         {
-            var result = configuration.ProxySettings.Select(proxy => new AiContainer(proxy)).ToList();
-            result.Add(new AiContainer(isPrimary: true));
-
-            return result;
+            return new List<AiContainer> { new AiContainer(isPrimary: true)};
         }
 
         #region JSON Request/Response Models

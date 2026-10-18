@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -8,7 +8,6 @@ using Translumo.Dialog;
 using Translumo.HotKeys;
 using Translumo.Infrastructure;
 using Translumo.Infrastructure.Constants;
-using Translumo.Infrastructure.Dispatching;
 using Translumo.MVVM.Models;
 using Translumo.Services;
 using Translumo.Update;
@@ -39,17 +38,15 @@ namespace Translumo.MVVM.ViewModels
         private readonly HotKeysServiceManager _hotKeysServiceManager;
         private readonly UpdateManager _updateManager;
 
-        public ChatWindowViewModel(ChatWindowModel model, HotKeysServiceManager hotKeysManager, ChatUITextMediator chatTextMediator, UpdateManager updateManager,
-            IActionDispatcher dispatcher, DialogService dialogService, IServiceProvider serviceProvider, ILogger<ChatWindowViewModel> logger)
+        public ChatWindowViewModel(ChatWindowModel model, HotKeysServiceManager hotKeysManager, ChatUITextMediator chatTextMediator, UpdateManager updateManager, 
+            DialogService dialogService, IServiceProvider serviceProvider, ILogger<ChatWindowViewModel> logger)
         {
             this.Model = model;
-            _logger = logger;
-            _dialogService = dialogService;
-            _serviceProvider = serviceProvider;
-            _hotKeysServiceManager = hotKeysManager;
-            _updateManager = updateManager;
-
-            dispatcher.RegisterConsumer<BrowseSiteDispatchArg, BrowseSiteDispatchResult>(DispatcherActions.PASS_SITE, BrowseSiteHandler);
+            this._logger = logger;
+            this._dialogService = dialogService;
+            this._serviceProvider = serviceProvider;
+            this._hotKeysServiceManager = hotKeysManager;
+            this._updateManager = updateManager;
 
             hotKeysManager.SelectAreaKeyPressed += HotKeysManagerOnSelectAreaKeyPressed;
             hotKeysManager.TranslationStateKeyPressed += HotKeysManagerOnTranslationStateKeyPressed;
@@ -67,7 +64,6 @@ namespace Translumo.MVVM.ViewModels
         {
             System.Windows.Application.Current.Dispatcher.Invoke(() => Model.ClearAllChatItems());
         }
-
         private void HotKeysManagerOnSettingVisibilityKeyPressed(object sender, EventArgs e)
         {
             OnShowHideSettings();
@@ -97,14 +93,14 @@ namespace Translumo.MVVM.ViewModels
             }
             else
             {
-                StartTranslation(true);
+                Model.StartTranslation();
             }
         }
 
         private void HotKeysManagerOnSelectAreaKeyPressed(object sender, EventArgs e)
         {
             Model.EndTranslation();
-
+            
             var result = _dialogService.ShowWindowDialog<SelectionAreaWindow>(out var window);
             if (result.HasValue && result.Value)
             {
@@ -122,13 +118,6 @@ namespace Translumo.MVVM.ViewModels
 
         private void HotKeysManagerOnOnceTranslateKeyPressed(object sender, EventArgs e)
         {
-            if (_dialogService.WindowIsOpened<SettingsViewModel>())
-            {
-                Model.AddChatItem(LocalizationManager.GetValue("Str.Chat.SettingsOpened"), TextTypes.Info);
-
-                return;
-            }
-
             var result = _dialogService.ShowWindowDialog<SelectionAreaWindow>(out var window);
             if (result.HasValue && result.Value)
             {
@@ -137,14 +126,14 @@ namespace Translumo.MVVM.ViewModels
         }
 
         private void HotKeysManagerOnWindowStyleChangeKeyPressed(object sender, EventArgs e)
-        {
+        { 
             const int WS_EX_TRANSPARENT = 0x00000020;
             const int GWL_EXSTYLE = -20;
 
             IntPtr hwnd = _dialogService.GetWindowHandle<ChatWindowViewModel>();
             int extendedStyle = Win32Interfaces.GetWindowLong(hwnd, GWL_EXSTYLE);
             Win32Interfaces.SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle ^ WS_EX_TRANSPARENT);
-
+            
             bool isLocked = (extendedStyle | WS_EX_TRANSPARENT) != extendedStyle;
             Model.AddChatItem(LocalizationManager.GetValue(isLocked ? "Str.Chat.WindowLocked" : "Str.Chat.WindowUnlocked"), TextTypes.Info);
         }
@@ -153,7 +142,6 @@ namespace Translumo.MVVM.ViewModels
         {
             if (!_dialogService.CloseWindow<SettingsViewModel>())
             {
-                Model.EndTranslation();
                 var scope = _serviceProvider.CreateScope();
                 var viewModel = scope.ServiceProvider.GetService<SettingsViewModel>();
                 viewModel.HasUpdates = _hasUpdates;
@@ -170,7 +158,7 @@ namespace Translumo.MVVM.ViewModels
             ChatWindowIsVisible = !ChatWindowIsVisible;
             if (ChatWindowIsVisible)
             {
-                StartTranslation(false);
+                Model.StartTranslation();
             }
             else
             {
@@ -190,33 +178,6 @@ namespace Translumo.MVVM.ViewModels
         }
 
 
-        private async Task<BrowseSiteDispatchResult> BrowseSiteHandler(BrowseSiteDispatchArg argument)
-        {
-            _logger.LogTrace($"Web page requested (Target url: '{argument.TargetUrl}'; Proxy: {argument.Proxy?.Address})");
-            var result = await WebBrowserProvider.BrowsePageAsync(argument.SourceUrl, argument.TargetUrl, CancellationToken.None,
-                argument.Proxy, LocalizationManager.GetValue("Str.Notification.CaptchaPass", true));
-
-            return new BrowseSiteDispatchResult()
-            {
-                HtmlPage = result?.Body,
-                Cookies = result?.Cookies
-            };
-        }
-
-        private void StartTranslation(bool showWarning)
-        {
-            if (_dialogService.WindowIsOpened<SettingsViewModel>())
-            {
-                if (showWarning)
-                {
-                    Model.AddChatItem(LocalizationManager.GetValue("Str.Chat.SettingsOpened"), TextTypes.Info);
-                }
-
-                return;
-            }
-
-            Model.StartTranslation();
-        }
 
         private void SendHelpText()
         {

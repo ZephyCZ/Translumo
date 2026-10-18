@@ -55,10 +55,7 @@ namespace Translumo.Translation.LibreTranslate
 
         protected override IList<LibreTranslateContainer> CreateContainers(TranslationConfiguration configuration)
         {
-            var result = configuration.ProxySettings.Select(proxy => new LibreTranslateContainer(proxy)).ToList();
-            result.Add(new LibreTranslateContainer(isPrimary: true));
-
-            return result;
+            return new List<LibreTranslateContainer> { new LibreTranslateContainer(isPrimary: true)};
         }
     }
 }

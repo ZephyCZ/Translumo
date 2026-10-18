@@ -82,10 +82,7 @@ namespace Translumo.Translation.Riva
 
         protected override IList<RivaContainer> CreateContainers(TranslationConfiguration configuration)
         {
-            var result = configuration.ProxySettings.Select(proxy => new RivaContainer(proxy)).ToList();
-            result.Add(new RivaContainer(isPrimary: true));
-
-            return result;
+            return new List<RivaContainer> { new RivaContainer(isPrimary: true)};
         }
 
         #region JSON Request/Response Models

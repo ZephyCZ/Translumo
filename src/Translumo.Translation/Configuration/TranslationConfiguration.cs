@@ -1,5 +1,4 @@
-using System.Collections.Generic;
-using Translumo.Infrastructure.Language;
+﻿using Translumo.Infrastructure.Language;
 using Translumo.Utils;
 using Translumo.Translation.Ai;
 
@@ -11,7 +10,10 @@ namespace Translumo.Translation.Configuration
         {
             TranslateFromLang = Languages.English,
             TranslateToLang = Languages.Russian,
-            ProxySettings = new List<Proxy>(),
+            Translator = Translators.Google,
+            DeeplApiKey = string.Empty,
+            YandexApiKey = string.Empty,
+
             LibreTranslateUrl = "http://localhost:5000",
             AiProvider = AiTranslatorProvider.Gemini,
             AiApiKey = string.Empty,
@@ -20,7 +22,7 @@ namespace Translumo.Translation.Configuration
             RivaUrl = "https://integrate.api.nvidia.com/v1/chat/completions",
             RivaApiKey = string.Empty,
             OnnxModelPath = "Models",
-            BeamCount = 2
+            BeamCount = 2,
         };
 
         public Languages TranslateFromLang
@@ -50,6 +52,7 @@ namespace Translumo.Translation.Configuration
             }
         }
 
+        
         public string LibreTranslateUrl
         {
             get => _libreTranslateUrl;
@@ -170,14 +173,24 @@ namespace Translumo.Translation.Configuration
             }
         }
 
-        public List<Proxy> ProxySettings
+        public string DeeplApiKey        
         {
-            get => _proxySettings;
+            get => _deeplApiKey;
             set
             {
-                SetProperty(ref _proxySettings, value);
+                SetProperty(ref _deeplApiKey, value);
             }
         }
+
+        public string YandexApiKey
+        {
+            get => _yandexApiKey;
+            set
+            {
+                SetProperty(ref _yandexApiKey, value);
+            }
+        }
+
 
         public int BeamCount
         {
@@ -191,6 +204,8 @@ namespace Translumo.Translation.Configuration
         private Languages _translateFromLang;
         private Languages _translateToLang;
         private Translators _translator;
+        private string _deeplApiKey = string.Empty;
+        private string _yandexApiKey = string.Empty;
         private string _libreTranslateUrl = "http://localhost:5000";
         private string _rivaUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
         private string _rivaApiKey = string.Empty;
@@ -206,8 +221,7 @@ namespace Translumo.Translation.Configuration
         private string _openRouterAiModel = string.Empty;
         private string _nvidiaNIMAiModel = "deepseek-ai/deepseek-v4-flash";
         private string _aiPromptTemplate = "You are an expert translator specializing in video game localization. Translate the text contextually and naturally from {0} to {1}. Output ONLY the direct translated text. Absolutely NO explanations, NO introductory phrases, NO markdown formatting, and NO code blocks. If the text is a single word or phrase, translate it as such.";
-        private List<Proxy> _proxySettings = new List<Proxy>();
         private string _onnxModelPath = "Models";
-        private int _beamCount = 1;
+        private int _beamCount = 2;
     }
 }

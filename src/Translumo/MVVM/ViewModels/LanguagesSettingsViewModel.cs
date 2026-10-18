@@ -1,7 +1,4 @@
-using Microsoft.Extensions.Logging;
-using Microsoft.Toolkit.Mvvm.Input;
-using OpenCvSharp;
-using Serilog.Core;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -20,10 +17,8 @@ using Translumo.OCR.WindowsOCR;
 using Translumo.Translation;
 using Translumo.Translation.Configuration;
 using Translumo.Translation.Ai;
-using Translumo.Translation.LibreTranslate;
 using Translumo.TTS;
 using Translumo.Utils;
-using Translumo.Utils.Extensions;
 using Translumo.Services;
 using RelayCommand = Microsoft.Toolkit.Mvvm.Input.RelayCommand;
 using AsyncRelayCommand = Microsoft.Toolkit.Mvvm.Input.AsyncRelayCommand;
@@ -71,8 +66,9 @@ namespace Translumo.MVVM.ViewModels
 
         public bool IsTtsWindowsSelected => TtsSettings.TtsSystem == TTSEngines.WindowsTTS;
 
-        public bool IsTtsEnabled => TtsSettings.TtsSystem != TTSEngines.None;
+        public bool IsDeeplSelected => Model.Translator == Translators.Deepl;
 
+        public bool IsYandexSelected => Model.Translator == Translators.Yandex;
         public bool IsLibreTranslateSelected => Model.Translator == Translators.LibreTranslate;
 
         public bool IsAiTranslatorSelected => Model.Translator == Translators.AiTranslator;
@@ -83,19 +79,19 @@ namespace Translumo.MVVM.ViewModels
 
         public IEnumerable<AiTranslatorProvider> AvailableAiProviders => Enum.GetValues<AiTranslatorProvider>();
 
-        public string AiModelCaption
+        public string AiModelCaptionDefault
         {
             get
             {
                 if (Model.AiProvider == AiTranslatorProvider.Gemini)
-                    return "Model Identifier (Default: gemini-3.5-flash)";
+                    return LocalizationManager.GetValue("Str.LangSettings.AiTransDefaultGemini"); //"(Default: gemini-3.5-flash)";
                 if (Model.AiProvider == AiTranslatorProvider.DeepSeek)
-                    return "Model Identifier (Default: deepseek-v4-flash)";
+                    return LocalizationManager.GetValue("Str.LangSettings.AiTransDefaultDeepSeek"); //"(Default: deepseek-v4-flash)";
                 if (Model.AiProvider == AiTranslatorProvider.OpenRouter)
-                    return "Model Identifier";
+                    return LocalizationManager.GetValue("Str.LangSettings.AiTransDefaultOpenRouter"); //"";
                 if (Model.AiProvider == AiTranslatorProvider.NvidiaNIM)
-                    return "Model Identifier (Default: deepseek-ai/deepseek-v4-flash)";
-                return "Model Identifier";
+                    return LocalizationManager.GetValue("Str.LangSettings.AiTransDefaultNIM"); //"(Default: deepseek-ai/deepseek-v4-flash)";
+                return "";
             }
         }
 
@@ -141,23 +137,41 @@ namespace Translumo.MVVM.ViewModels
 
 
 
-        public ObservableCollection<ProxyCardItem> ProxyCollection
+        public Translators Translator
         {
-            get => _proxyCollection;
+            get => Model.Translator;
             set
             {
-                SetProperty(ref _proxyCollection, value);
+                Model.Translator = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsDeeplSelected));
+                OnPropertyChanged(nameof(IsYandexSelected));
             }
         }
-        public bool ProxySettingsIsOpened
+
+        public string DeeplApiKey
         {
-            get => _proxySettingsIsOpened;
+            get => Model.DeeplApiKey;
             set
             {
-                SetProperty(ref _proxySettingsIsOpened, value);
-                PanelStateIsChanged?.Invoke(this, value);
+                Model.DeeplApiKey = value;
+                OnPropertyChanged();
             }
         }
+
+        public string YandexApiKey
+        {
+            get => Model.YandexApiKey;
+            set
+            {
+                Model.YandexApiKey = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool IsTtsEnabled => TtsSettings.TtsSystem != TTSEngines.None;
+
+
 
         public Languages TranslateFromLang
         {
@@ -215,22 +229,16 @@ namespace Translumo.MVVM.ViewModels
 
         public ICommand ToggleLibreTranslateGuideCommand => new RelayCommand(() =>
         {
-            var text = "LibreTranslate Setup Guide\n\n" +
-                       "To use LibreTranslate locally, you only need to install it. Translumo will automatically run the server for you.\n\n" +
-                       "Step 1: Prerequisites\n" +
-                       "Make sure Python is installed on your computer (download from python.org).\n\n" +
-                       "Step 2: Install LibreTranslate\n" +
-                       "Open your Command Prompt (CMD) or Terminal. Copy and paste the command below, then press Enter:\n\n" +
-                       "> pip install libretranslate\n\n" +
-                       "Step 3: Download Language Models\n" +
-                       "Make sure the language you selected is downloaded to your local repository. To download a language (e.g., English to Korean), run:\n\n" +
-                       "> argospm update\n" +
-                       "> argospm install translate-en_ko\n" +
-                       "> argospm install translate-ko_en\n\n" +
-                       "For a full list of language codes, please visit:\n" +
-                       "https://docs.libretranslate.com/guides/supported_languages/\n\n" +
-                       "You don't need to manually run the server anymore. Translumo handles it based on your selected languages!";
-            _dialogService.ShowDialogAsync(SimpleDialogViewModel.Create(text, SimpleDialogTypes.Info, "LibreTranslate Setup Guide"));
+            var title = LocalizationManager.GetValue("Str.Stages.LibreTranslateGuideTitle");
+            var text = LocalizationManager.GetValue("Str.Stages.LibreTranslateGuide", lineBreakReplacement: true);
+            var _ = _dialogService.ShowDialogAsync(SimpleDialogViewModel.Create(text, SimpleDialogTypes.Info, title));
+        });
+
+        public ICommand ToggleOnnxManualGuideCommand => new RelayCommand(() =>
+        {
+            var title = LocalizationManager.GetValue("Str.Stages.OnnxManualTitle");
+            var text = $"{LocalizationManager.GetValue("Str.Stages.OnnxGuideText", lineBreakReplacement: true)}\n\n{LocalizationManager.GetValue("Str.Stages.OnnxManualGuide", lineBreakReplacement: true)}";
+            var _ = _dialogService.ShowDialogAsync(SimpleDialogViewModel.Create(text, SimpleDialogTypes.Info, title));
         });
 
         public ICommand RunLibreTranslateCommand => new RelayCommand(OnRunLibreTranslate);
@@ -293,14 +301,6 @@ namespace Translumo.MVVM.ViewModels
 
         public ICommand TestRivaCommand => new AsyncRelayCommand(OnTestRivaAsync);
 
-        public ICommand ProxySettingsClickedCommand => new RelayCommand(OnProxySettingsClicked);
-        public ICommand ProxyItemDeletedCommand => new RelayCommand<ProxyCardItem>(OnProxyItemDeletedCommand);
-        public ICommand ProxyItemAddCommand => new RelayCommand(OnProxyItemAddCommand);
-        public ICommand ProxySettingsSubmitCommand => new RelayCommand<bool>(OnProxySettingsSubmit);
-
-        private ObservableCollection<ProxyCardItem> _proxyCollection;
-        private bool _proxySettingsIsOpened;
-
         private readonly DialogService _dialogService;
         private readonly OcrGeneralConfiguration _ocrConfiguration;
         private readonly LanguageService _languageService;
@@ -337,7 +337,7 @@ namespace Translumo.MVVM.ViewModels
                 }
                 else if (args.PropertyName == nameof(Model.AiProvider))
                 {
-                    OnPropertyChanged(nameof(AiModelCaption));
+                    OnPropertyChanged(nameof(AiModelCaptionDefault));
                     OnPropertyChanged(nameof(CurrentAiApiKey));
                     OnPropertyChanged(nameof(CurrentAiModel));
                 }
@@ -359,7 +359,7 @@ namespace Translumo.MVVM.ViewModels
             _libreTranslateManager = libreTranslateManager;
             _logger = logger;
 
-            OnPropertyChanged(nameof(AiModelCaption));
+            OnPropertyChanged(nameof(AiModelCaptionDefault));
             ResetLibreTranslateState();
         }
 
@@ -599,34 +599,6 @@ namespace Translumo.MVVM.ViewModels
             LibreTranslateTestResultColor = _libreTranslateManager.IsRunning ? "Green" : "Red";
         }
 
-        private void OnProxySettingsClicked()
-        {
-            InitializeProxyCollection();
-            ProxySettingsIsOpened = true;
-        }
-
-        private void OnProxyItemDeletedCommand(ProxyCardItem itemToDelete)
-        {
-            _proxyCollection.Remove(itemToDelete);
-        }
-
-        private void OnProxyItemAddCommand()
-        {
-            _proxyCollection.Add(new ProxyCardItem());
-        }
-
-        private void OnProxySettingsSubmit(bool applyProxy)
-        {
-            if (applyProxy)
-            {
-                Model.ProxySettings = ProxyCollection.Where(pr => pr.IsValid())
-                    .Select(pr => pr.MapTo<ProxyCardItem, Proxy>())
-                    .ToList();
-            }
-
-            ProxySettingsIsOpened = false;
-        }
-
         private async Task ChangeSourceLanguage(Languages language)
         {
             try
@@ -743,14 +715,9 @@ namespace Translumo.MVVM.ViewModels
             availableLang.DisplayName = LocalizationManager.GetValue(key, false, OnLocalizedValueChanged, this);
         }
 
-        private void InitializeProxyCollection()
-        {
-            ProxyCollection = new ObservableCollection<ProxyCardItem>(Model.ProxySettings.Select(st => st.MapTo<Proxy, ProxyCardItem>()));
-        }
 
         public void ClosePanel()
         {
-            ProxySettingsIsOpened = false;
         }
 
         public void Dispose()
