@@ -9,6 +9,11 @@
 <p align="center"><strong>English</strong> | <a href="docs/README-RU.md"><strong>Русский</strong></a></p>
 
 ---
+# 🚀 Version 1.6.1 Update
+
+Replaced legacy System.Speech API with Windows.Media.SpeechSynthesis. 
+This enables support for modern Windows TTS OneCore voices available in Windows 10/11.
+
 # 🚀 Version 1.6 + 1.1.0 Update
 
 This version of **Translumo** combines all the modifications from version 1.1.0 by the original author, [ramjke](https://github.com/ramjke/Translumo/), with the changes from this fork by [Casezy](https://github.com/Casezy/Translumo/) and [Zephy](https://github.com/ZephyCZ/Translumo/).

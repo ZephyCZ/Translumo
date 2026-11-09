@@ -2,9 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.Linq;
-using System.Speech.Synthesis;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Translumo.Dialog;
@@ -38,15 +36,15 @@ namespace Translumo.MVVM.ViewModels
 
         public TtsConfiguration TtsSettings { get; set; }
 
-        private ObservableCollection<VoiceInfo> _availableVoices;
-        public ObservableCollection<VoiceInfo> AvailableVoices
+        private ObservableCollection<TtsVoice> _availableVoices;
+        public ObservableCollection<TtsVoice> AvailableVoices
         {
             get => _availableVoices;
             set => SetProperty(ref _availableVoices, value);
         }
 
-        private VoiceInfo _selectedVoice;
-        public VoiceInfo SelectedVoice
+        private TtsVoice _selectedVoice;
+        public TtsVoice SelectedVoice
         {
             get => _selectedVoice;
             set
@@ -345,7 +343,7 @@ namespace Translumo.MVVM.ViewModels
             this.TtsSettings = ttsConfiguration;
             this.TtsSettings.TtsLanguage = this.Model.TranslateToLang;
 
-            this.AvailableVoices = new ObservableCollection<VoiceInfo>();
+            this.AvailableVoices = new ObservableCollection<TtsVoice>();
 
             if (this.TtsSettings.TtsSystem == TTSEngines.WindowsTTS)
             {
@@ -367,8 +365,8 @@ namespace Translumo.MVVM.ViewModels
         {
             try
             {
-                var voices = GetAvailableVoicesForLanguage(languageCode);
-                AvailableVoices = new ObservableCollection<VoiceInfo>(voices);
+                var voices = WindowsTTSHelper.GetAvailableVoicesForLanguage(languageCode);
+                AvailableVoices = new ObservableCollection<TtsVoice>(voices);
 
                 if (!string.IsNullOrEmpty(TtsSettings.SelectedVoiceName))
                 {
@@ -387,43 +385,27 @@ namespace Translumo.MVVM.ViewModels
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Load available voices error");
-                AvailableVoices = new ObservableCollection<VoiceInfo>();
+                AvailableVoices = new ObservableCollection<TtsVoice>();
             }
         }
 
-        private List<VoiceInfo> GetAvailableVoicesForLanguage(string languageTag)
-        {
-            using var synth = new SpeechSynthesizer();
-            var result = new List<VoiceInfo>();
+        //private List<TtsVoice> GetAvailableVoicesForLanguage(string languageTag)
+        //{
+        //    var result = new List<TtsVoice>();
+        //    try
+        //    {
+        //        result = Windows.Media.SpeechSynthesis.SpeechSynthesizer.AllVoices
+        //        .Where(v => v.Language.StartsWith(languageTag))
+        //        .Select(v => new TtsVoice(v.DisplayName, v.Language))
+        //        .ToList();
+        //    }
+        //    catch (Exception)
+        //    {
 
-            try
-            {
-                var voices = synth.GetInstalledVoices(new CultureInfo(languageTag));
-                if (voices.Count > 0)
-                {
-                    result.AddRange(voices.Select(v => v.VoiceInfo));
-                    return result;
-                }
-            }
-            catch
-            {
-            }
+        //    }
 
-            try
-            {
-                var shortTag = languageTag.Split('-')[0];
-                var voices = synth.GetInstalledVoices(new CultureInfo(shortTag));
-                if (voices.Count > 0)
-                {
-                    result.AddRange(voices.Select(v => v.VoiceInfo));
-                }
-            }
-            catch
-            {
-            }
-
-            return result;
-        }
+        //    return result;
+        //}
 
         private async Task<bool> ValidateOpenRouterModelAsync(string modelName)
         {
@@ -657,7 +639,7 @@ namespace Translumo.MVVM.ViewModels
                 }
                 else
                 {
-                    AvailableVoices = new ObservableCollection<VoiceInfo>();
+                    AvailableVoices = new ObservableCollection<TtsVoice>();
                     _selectedVoice = null;
                     OnPropertyChanged(nameof(SelectedVoice));
                 }

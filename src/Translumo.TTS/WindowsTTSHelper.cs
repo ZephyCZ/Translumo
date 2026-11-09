@@ -1,6 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Globalization;
-using System.Speech.Synthesis;
 
 namespace Translumo.TTS
 {
@@ -21,39 +19,17 @@ namespace Translumo.TTS
             return process.ExitCode == 0;
         }
 
-        public static bool IsLanguageTTSCapabilityInstalled(string languageTag, bool exactMatching = false)
+        public static bool IsLanguageTTSCapabilityInstalled(
+            string languageTag,
+            bool exactMatching = false)
         {
-            using var synth = new SpeechSynthesizer();
-
-            try
+            if (exactMatching)
             {
-                // Try exact match
-                var voices = synth.GetInstalledVoices(new CultureInfo(languageTag));
-                if (voices.Count != 0)
-                    return true;
-            }
-            catch
-            {
-                // Culture not valid — ignore
+                return Windows.Media.SpeechSynthesis.SpeechSynthesizer.AllVoices
+                    .Any(v => v.Language.Equals(languageTag, StringComparison.OrdinalIgnoreCase));
             }
 
-            if (!exactMatching)
-            {
-                try
-                {
-                    // Fallback: check only the two-letter language code
-                    var shortTag = languageTag.Split('-')[0];
-                    var voices = synth.GetInstalledVoices(new CultureInfo(shortTag));
-                    if (voices.Count != 0)
-                        return true;
-                }
-                catch
-                {
-                    // Still not valid — ignore
-                }
-            }
-
-            return false;
+            return GetAvailableVoicesForLanguage(languageTag).Count != 0;
         }
 
         private static Process CreateTTSCapabilityInstallProcess(string nameTag)
@@ -97,35 +73,17 @@ namespace Translumo.TTS
             return process;  // Return the process after completion
         }
 
-        public static List<VoiceInfo> GetAvailableVoicesForLanguage(string languageTag)
+        public static List<TtsVoice> GetAvailableVoicesForLanguage(string languageTag)
         {
-            using var synth = new SpeechSynthesizer();
-            var result = new List<VoiceInfo>();
-
+            var result = new List<TtsVoice>();
             try
             {
-                var voices = synth.GetInstalledVoices(new CultureInfo(languageTag));
-                if (voices.Count > 0)
-                {
-                    result.AddRange(voices.Select(v => v.VoiceInfo));
-                    return result;
-                }
+                result = Windows.Media.SpeechSynthesis.SpeechSynthesizer.AllVoices
+                .Where(v => v.Language.StartsWith(languageTag))
+                .Select(v => new TtsVoice(v.DisplayName, v.Language))
+                .ToList();
             }
-            catch
-            {
-
-            }
-
-            try
-            {
-                var shortTag = languageTag.Split('-')[0];
-                var voices = synth.GetInstalledVoices(new CultureInfo(shortTag));
-                if (voices.Count > 0)
-                {
-                    result.AddRange(voices.Select(v => v.VoiceInfo));
-                }
-            }
-            catch
+            catch (Exception)
             {
 
             }
